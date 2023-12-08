@@ -7,9 +7,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.4.11", features = ["derive"] }
-color-eyre = "0.6.2"
+dirs = "5.0.1"
 duration-string = "0.3.0"
-eyre = "0.6.9"
 git2 = "0.18.1"
-git2_credentials = "0.13.0"
 shlex = "1.2.0"

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use self::git::GitRepository;
 
 pub mod git;
-pub mod test;
+pub mod git_credentials;
 
 pub trait Repository
 where

@@ -5,7 +5,7 @@ use git2::{
     AnnotatedCommit, AutotagOption, Error as GitError, FetchOptions, RemoteCallbacks,
     Repository as UnderlyingRepository,
 };
-use git2_credentials::CredentialHandler;
+use super::git_credentials::CredentialHandler;
 
 pub struct GitRepository {
     repo: UnderlyingRepository,
