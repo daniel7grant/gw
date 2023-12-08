@@ -1,8 +1,14 @@
 mod args;
-use std::{thread::sleep, time::Instant};
+use std::{
+    net::TcpListener,
+    sync::mpsc::{self, Sender},
+    thread,
+    thread::sleep,
+    time::{Duration, Instant},
+};
 
 use args::{Args, Command, RunOptions, WatchOptions};
-
+use duration_string::DurationString;
 use gumdrop::Options;
 use gw::{
     repository::{git::GitRepository, open_repository, Repository},
@@ -26,11 +32,37 @@ fn run(repo: &mut GitRepository, scripts: &Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
+fn schedule(tx: Sender<()>, delay: Duration) -> Result<(), String> {
+    println!("Starting schedule in every {}.", DurationString::new(delay));
+    loop {
+        let next_check = Instant::now() + delay;
+        tx.send(())
+            .map_err(|_| String::from("Triggering run failed."))?;
+        // TODO: handle overlaps
+        let until_next_check = next_check - Instant::now();
+        sleep(until_next_check);
+    }
+}
+
+fn listen(tx: Sender<()>, http: String) -> Result<(), String> {
+    let listener =
+        TcpListener::bind(&http).map_err(|_| format!("Cannot start server on {http}"))?;
+    println!("Listening on {http}...");
+    for stream in listener.incoming() {
+        let _ = stream.map_err(|_| format!("Connection failed."))?;
+        tx.send(())
+            .map_err(|_| String::from("Triggering run failed."))?;
+    }
+    Ok(())
+}
+
 fn main() -> Result<(), String> {
     let args = Args::parse_args_default_or_exit();
 
     match args.command {
-        Some(Command::Run(RunOptions { directory, scripts, .. })) => {
+        Some(Command::Run(RunOptions {
+            directory, scripts, ..
+        })) => {
             let mut repo = open_repository(&directory)?;
             run(&mut repo, &scripts)?;
             Ok(())
@@ -39,19 +71,37 @@ fn main() -> Result<(), String> {
             directory,
             scripts,
             trigger: _,
-            http: _,
+            http,
             delay,
             ..
         })) => {
-            let mut repo = open_repository(&directory)?;
-            loop {
-                let next_check = Instant::now() + delay.into();
-                run(&mut repo, &scripts)?;
-                // TODO: handle overlaps
-                let until_next_check = next_check - Instant::now();
-                sleep(until_next_check);
+            let (tx, rx) = mpsc::channel::<()>();
+
+            let mut threads = vec![];
+            let delay_duration: Duration = delay.into();
+            if delay_duration > Duration::ZERO {
+                let tx = tx.clone();
+                threads.push(thread::spawn(move || schedule(tx, delay_duration)));
             }
+            if let Some(http) = http {
+                let tx = tx.clone();
+                threads.push(thread::spawn(move || listen(tx, http)));
+            }
+
+            let mut repo = open_repository(&directory)?;
+            while let Ok(_) = rx.recv() {
+                run(&mut repo, &scripts)?;
+            }
+
+            for thread in threads {
+                thread
+                    .join()
+                    .map_err(|_| String::from("Thread panicked."))??;
+            }
+            Ok(())
         }
-        None => Err(String::from("You have to use a command, either run or watch.")),
+        None => Err(String::from(
+            "You have to use a command, either run or watch.",
+        )),
     }
 }

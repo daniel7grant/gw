@@ -28,22 +28,19 @@ impl FromStr for Trigger {
 
 #[derive(Debug, Options)]
 pub struct RunOptions {
-    #[options()]
-    help: bool,
-
     /// The git repository to look at
     #[options(free, required)]
     pub directory: String,
     /// The script to run on changes
     #[options()]
     pub scripts: Vec<String>,
+    /// Print this help
+    #[options()]
+    help: bool,
 }
 
 #[derive(Debug, Options)]
 pub struct WatchOptions {
-    #[options()]
-    help: bool,
-
     /// The git repository to watch.
     #[options(free, required)]
     pub directory: String,
@@ -66,6 +63,9 @@ pub struct WatchOptions {
     /// Runs an HTTP server on the URL, which allows to trigger by calling it
     #[options(no_short)]
     pub http: Option<String>,
+    /// Print this help
+    #[options()]
+    help: bool,
 }
 
 #[derive(Debug, Options)]
@@ -85,9 +85,10 @@ pub enum Command {
 /// Track a repository for changes and run scripts when it happens
 #[derive(Debug, Options)]
 pub struct Args {
-    #[options()]
-    help: bool,
-
     #[options(command)]
     pub command: Option<Command>,
+
+    /// Print this help
+    #[options()]
+    help: bool,
 }
