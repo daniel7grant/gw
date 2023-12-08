@@ -1,6 +1,5 @@
 mod args;
 use std::{
-    net::TcpListener,
     sync::mpsc::{self, Sender},
     thread,
     thread::sleep,
@@ -14,6 +13,7 @@ use gw::{
     repository::{git::GitRepository, open_repository, Repository},
     script::command::run_command,
 };
+use tiny_http::{Response, Server};
 
 fn run(repo: &mut GitRepository, scripts: &Vec<String>) -> Result<(), String> {
     println!("Checking directory: {}", repo.get_directory());
@@ -45,13 +45,17 @@ fn schedule(tx: Sender<()>, delay: Duration) -> Result<(), String> {
 }
 
 fn listen(tx: Sender<()>, http: String) -> Result<(), String> {
-    let listener =
-        TcpListener::bind(&http).map_err(|_| format!("Cannot start server on {http}"))?;
+    let listener = Server::http(&http).map_err(|_| format!("Cannot start server on {http}"))?;
     println!("Listening on {http}...");
-    for stream in listener.incoming() {
-        let _ = stream.map_err(|_| format!("Connection failed."))?;
+    for request in listener.incoming_requests() {
+        println!("Received request on {} {}", request.method(), request.url());
+
         tx.send(())
             .map_err(|_| String::from("Triggering run failed."))?;
+
+        request
+            .respond(Response::from_string("OK"))
+            .map_err(|_| String::from("Could not respond to request."))?;
     }
     Ok(())
 }
