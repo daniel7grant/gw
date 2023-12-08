@@ -1,9 +1,9 @@
 mod args;
 use std::{thread::sleep, time::Instant};
 
-use args::Args;
-use clap::Parser;
+use args::{Args, Command, RunOptions, WatchOptions};
 
+use gumdrop::Options;
 use gw::{
     repository::{git::GitRepository, open_repository, Repository},
     script::command::run_command,
@@ -27,21 +27,22 @@ fn run(repo: &mut GitRepository, scripts: &Vec<String>) -> Result<(), String> {
 }
 
 fn main() -> Result<(), String> {
-    let args = Args::parse();
+    let args = Args::parse_args_default_or_exit();
 
     match args.command {
-        args::Command::Run { directory, scripts } => {
+        Some(Command::Run(RunOptions { directory, scripts, .. })) => {
             let mut repo = open_repository(&directory)?;
             run(&mut repo, &scripts)?;
             Ok(())
         }
-        args::Command::Watch {
+        Some(Command::Watch(WatchOptions {
             directory,
             scripts,
             trigger: _,
             http: _,
             delay,
-        } => {
+            ..
+        })) => {
             let mut repo = open_repository(&directory)?;
             loop {
                 let next_check = Instant::now() + delay.into();
@@ -51,5 +52,6 @@ fn main() -> Result<(), String> {
                 sleep(until_next_check);
             }
         }
+        None => Err(String::from("You have to use a command, either run or watch.")),
     }
 }
