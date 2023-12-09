@@ -40,18 +40,26 @@ jobs:
           command: build
           args: --release --target x86_64-pc-windows-gnu
           use-cross: true
+      - name: Build for MacOS
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-apple-darwin
+          use-cross: true
       - name: Convert binaries into compressed files
         run: |
-          cd target/x86_64-unknown-linux-gnu/release && tar czf gr-bin_x86_64-unknown-linux-gnu.tar.gz gr && cd -
-          cd target/x86_64-unknown-linux-gnu/release && zip gr-bin_x86_64-unknown-linux-gnu.zip gr && cd -
-          cd target/x86_64-pc-windows-gnu/release && zip gr-bin_x86_64-pc-windows-gnu.zip gr.exe && cd -
+          cd target/x86_64-unknown-linux-gnu/release && tar czf gw-bin_x86_64-unknown-linux-gnu.tar.gz gw && cd -
+          cd target/x86_64-unknown-linux-gnu/release && zip gw-bin_x86_64-unknown-linux-gnu.zip gw && cd -
+          cd target/x86_64-pc-windows-gnu/release && zip gw-bin_x86_64-pc-windows-gnu.zip gw.exe && cd -
+          cd target/x86_64-apple-darwin/release && zip gw-bin_x86_64-apple-darwin.zip gw && cd -
       - name: Release on tags
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            target/x86_64-unknown-linux-gnu/release/gr-bin_x86_64-unknown-linux-gnu.tar.gz
-            target/x86_64-unknown-linux-gnu/release/gr-bin_x86_64-unknown-linux-gnu.zip
-            target/x86_64-pc-windows-gnu/release/gr-bin_x86_64-pc-windows-gnu.zip
+            target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.tar.gz
+            target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.zip
+            target/x86_64-pc-windows-gnu/release/gw-bin_x86_64-pc-windows-gnu.zip
+            target/x86_64-apple-darwin/release/gw-bin_x86_64-apple-darwin.zip
       - uses: katyo/publish-crates@v2
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
