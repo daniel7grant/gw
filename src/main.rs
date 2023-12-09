@@ -9,7 +9,7 @@ use std::{
 use args::{Args, Command, RunOptions, WatchOptions};
 use duration_string::DurationString;
 use gumdrop::Options;
-use gw::{
+use gw_bin::{
     repository::{git::GitRepository, open_repository, Repository},
     script::command::run_command,
 };

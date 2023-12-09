@@ -125,7 +125,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gw"
+name = "gw-bin"
 version = "0.1.0"
 dependencies = [
  "dirs",

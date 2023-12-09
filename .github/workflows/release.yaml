@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release if we are on a tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v3
+      - name: Add toolchain for Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Restore cached dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build for Linux
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-unknown-linux-gnu
+      - name: Build for Windows
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-pc-windows-gnu
+          use-cross: true
+      - name: Convert binaries into compressed files
+        run: |
+          cd target/x86_64-unknown-linux-gnu/release && tar czf gr-bin_x86_64-unknown-linux-gnu.tar.gz gr && cd -
+          cd target/x86_64-unknown-linux-gnu/release && zip gr-bin_x86_64-unknown-linux-gnu.zip gr && cd -
+          cd target/x86_64-pc-windows-gnu/release && zip gr-bin_x86_64-pc-windows-gnu.zip gr.exe && cd -
+      - name: Release on tags
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            target/x86_64-unknown-linux-gnu/release/gr-bin_x86_64-unknown-linux-gnu.tar.gz
+            target/x86_64-unknown-linux-gnu/release/gr-bin_x86_64-unknown-linux-gnu.zip
+            target/x86_64-pc-windows-gnu/release/gr-bin_x86_64-pc-windows-gnu.zip
+      - uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          ignore-unpublished-changes: true

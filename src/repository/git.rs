@@ -75,6 +75,8 @@ impl GitRepository {
             .shorthand()
             .ok_or(GitError::from_str("We are currently not on a branch."))?;
 
+        // TODO: Only fetch if the repository is dirty
+
         let branch_refname = format!("refs/heads/{}", branch_name);
         let branch_ref = repo.find_reference(&branch_refname)?;
 
