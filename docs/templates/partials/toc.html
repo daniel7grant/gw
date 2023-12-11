@@ -1,0 +1,23 @@
+<aside>
+    <h1><a href="/">gw</a></h1>
+    <p class="tagline">
+        watch repositories<br />
+        sync with remote<br />
+        run commands
+    </p>
+    <a href="#content" class="mobile-only">Jump to content</a>
+    {% set sections = get_section(path="_index.md") %}
+    {% for section_path in sections.subsections -%}
+    {% set subsection = get_section(path=section_path) %}
+    <h5>
+        <a href="{{ subsection.path }}">{{ subsection.title }}</a>
+    </h5>
+    <ul>
+        {% for page in subsection.pages -%}
+        <li>
+            <a href="{{ page.path }}">{{ page.title }}</a>
+        </li>
+        {%- endfor %}
+    </ul>
+    {%- endfor %}
+</aside>

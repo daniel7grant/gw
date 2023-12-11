@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{{ section.title }}</title>
+        <link rel="stylesheet" href="/sakura-dark.css" />
+        <link rel="stylesheet" href="/custom.css" />
+    </head>
+    <body>
+        {% include "partials/toc.html" %}
+        <main id="content">
+            <h1>{{ section.title }}</h1>
+            {{ section.content | safe }}
+            <ul>
+                {% for page in paginator.pages -%}
+                <li>
+                    <a href="{{ page.path }}">{{ page.title }}</a>
+                </li>
+                {%- endfor %}
+            </ul>
+        </main>
+    </body>
+</html>

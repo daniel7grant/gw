@@ -23,6 +23,7 @@ fn run(repo: &mut GitRepository, scripts: &Vec<String>) -> Result<(), String> {
         println!("Pulled updates.");
         for script in scripts {
             let mut child = run_command(&repo, &script)?;
+            // TODO: check exit code
             child.wait().map_err(|err| err.to_string())?;
         }
     } else {

@@ -29,8 +29,8 @@ gw /path/to/repo
 To make it more useful, we can use the `--script` (or `-s`) flag to run commands when there are updates. You can define multiple scripts however for multiple commands or advanced logic, it is recommended to use a `update.sh` file in the repository.
 
 ```sh
-gw /path/to/repo --script "echo pulled"
-gw /path/to/repo --script "echo building" --script "echo deploying"
+gw /path/to/repo --script 'echo pulled'
+gw /path/to/repo --script 'echo building' --script 'echo deploying'
 ```
 
 To put this in the background simply wrap this in a [systemd unit](./docs/systemd.md) or [docker container](./docs/docker.md).
