@@ -26,69 +26,41 @@ impl FromStr for Trigger {
     }
 }
 
+/// Track a repository for changes and run scripts when it happens
 #[derive(Debug, Options)]
-pub struct RunOptions {
-    /// The git repository to look at
-    #[options(free, required)]
-    pub directory: String,
-    /// The script to run on changes
-    #[options()]
-    pub scripts: Vec<String>,
-    /// Print this help
-    #[options()]
-    help: bool,
-}
-
-#[derive(Debug, Options)]
-pub struct WatchOptions {
+pub struct Args {
     /// The git repository to watch.
-    #[options(free, required)]
-    pub directory: String,
+    #[options(free)]
+    pub directory: Option<String>,
+
     /// The script to run on changes, you can define multiple times.
     ///
     /// If there are no scripts given, it will only pull.
-    #[options()]
+    #[options(long = "script")]
     pub scripts: Vec<String>,
+
+    /// Try to pull only once. Useful for cronjobs.
+    #[options()]
+    pub once: bool,
+
     /// The trigger on which to run
     ///
     /// Can be either "push" to trigger on every change (default)
     /// or "tag:regex" to trigger on every tag matching a regex.
     #[options(default = "push")]
     pub trigger: Trigger,
+
     /// Refreshes the repo with this delay
     ///
     /// Can be a number postfixed with s(econd), m(inutes), h(ours), d(ays)
     #[options(long = "every", default = "1m")]
     pub delay: DurationString,
+
     /// Runs an HTTP server on the URL, which allows to trigger by calling it
     #[options(no_short)]
     pub http: Option<String>,
-    /// Print this help
-    #[options()]
-    help: bool,
-}
-
-#[derive(Debug, Options)]
-pub enum Command {
-    /// Check for updates once
-    ///
-    /// Suitable for adding to crontabs
-    #[options()]
-    Run(RunOptions),
-    /// Run in the foreground and watch for updates
-    ///
-    /// Suitable for running as a daemon (e.g. systemd unit)
-    #[options()]
-    Watch(WatchOptions),
-}
-
-/// Track a repository for changes and run scripts when it happens
-#[derive(Debug, Options)]
-pub struct Args {
-    #[options(command)]
-    pub command: Option<Command>,
 
     /// Print this help
     #[options()]
-    help: bool,
+    pub help: bool,
 }

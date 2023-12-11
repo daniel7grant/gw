@@ -6,7 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use args::{Args, Command, RunOptions, WatchOptions};
+use args::Args;
 use duration_string::DurationString;
 use gumdrop::Options;
 use gw_bin::{
@@ -61,51 +61,49 @@ fn listen(tx: Sender<()>, http: String) -> Result<(), String> {
 }
 
 fn main() -> Result<(), String> {
-    let args = Args::parse_args_default_or_exit();
+    let Args {
+        directory,
+        scripts,
+        trigger: _,
+        http,
+        delay,
+        once,
+        help: _,
+    } = Args::parse_args_default_or_exit();
 
-    match args.command {
-        Some(Command::Run(RunOptions {
-            directory, scripts, ..
-        })) => {
-            let mut repo = open_repository(&directory)?;
-            run(&mut repo, &scripts)?;
-            Ok(())
-        }
-        Some(Command::Watch(WatchOptions {
-            directory,
-            scripts,
-            trigger: _,
-            http,
-            delay,
-            ..
-        })) => {
-            let (tx, rx) = mpsc::channel::<()>();
+    let directory = directory.ok_or(String::from("You have to pass a directory argument."))?;
+    let mut repo = open_repository(&directory)?;
 
-            let mut threads = vec![];
-            let delay_duration: Duration = delay.into();
-            if delay_duration > Duration::ZERO {
-                let tx = tx.clone();
-                threads.push(thread::spawn(move || schedule(tx, delay_duration)));
-            }
-            if let Some(http) = http {
-                let tx = tx.clone();
-                threads.push(thread::spawn(move || listen(tx, http)));
-            }
-
-            let mut repo = open_repository(&directory)?;
-            while let Ok(_) = rx.recv() {
-                run(&mut repo, &scripts)?;
-            }
-
-            for thread in threads {
-                thread
-                    .join()
-                    .map_err(|_| String::from("Thread panicked."))??;
-            }
-            Ok(())
-        }
-        None => Err(String::from(
-            "You have to use a command, either run or watch.",
-        )),
+    // If once is specified, check for updates and exit
+    if once {
+        run(&mut repo, &scripts)?;
+        return Ok(());
     }
+
+    // Allow triggers from multiple places with a channel
+    let (tx, rx) = mpsc::channel::<()>();
+
+    // Start threads for schedule and for HTTP if applicable
+    let mut threads = vec![];
+    let delay_duration: Duration = delay.into();
+    if delay_duration > Duration::ZERO {
+        let tx: Sender<()> = tx.clone();
+        threads.push(thread::spawn(move || schedule(tx, delay_duration)));
+    }
+    if let Some(http) = http {
+        let tx = tx.clone();
+        threads.push(thread::spawn(move || listen(tx, http)));
+    }
+
+    // Wait for triggers in a loop
+    while let Ok(_) = rx.recv() {
+        run(&mut repo, &scripts)?;
+    }
+
+    for thread in threads {
+        thread
+            .join()
+            .map_err(|_| String::from("Thread panicked."))??;
+    }
+    Ok(())
 }
