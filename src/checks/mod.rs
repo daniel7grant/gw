@@ -1,5 +1,10 @@
 use crate::Result;
 
+/// A check to fetch and pull a local git repository
+pub mod git;
+/// A check to watch a directory for changes
+pub mod watch;
+
 /// A check is a process that tests if there are any changes and updates it.
 ///
 /// Checks may include:
@@ -8,5 +13,5 @@ use crate::Result;
 ///   - etc.
 pub trait Check {
 	/// Check if there are changes and update if necessary.
-    fn check(self: &mut Self) -> Result<bool>;
+    fn check(&mut self) -> Result<bool>;
 }

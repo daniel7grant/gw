@@ -1,5 +1,8 @@
 use crate::Result;
 
+/// An action to run a custom shell script
+pub mod script;
+
 /// An action is a process that runs if any changes occured.
 /// 
 /// Actions may include:
@@ -7,5 +10,5 @@ use crate::Result;
 ///   - etc.
 pub trait Action {
     /// Initiate the action
-    fn run() -> Result<()>;
+    fn run(&self) -> Result<()>;
 }
