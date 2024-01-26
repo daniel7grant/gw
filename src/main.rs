@@ -4,7 +4,7 @@ use gw_bin::{
     triggers::{http::HttpTrigger, schedule::ScheduleTrigger, Trigger},
     Result,
 };
-use std::{process, sync::mpsc};
+use std::{error::Error, process, sync::mpsc};
 
 fn start(
     triggers: &Vec<Box<dyn Trigger>>,
@@ -13,9 +13,15 @@ fn start(
 ) -> Result<()> {
     let (tx, rx) = mpsc::channel::<Option<()>>();
 
-    for trigger in triggers {
-        let tx = tx.clone();
-        trigger.listen(&tx)?;
+    if triggers.len() > 0 {
+        for trigger in triggers {
+            let tx = tx.clone();
+            trigger.listen(&tx)?;
+        }
+    } else {
+        return Err(Box::<dyn Error>::from(String::from(
+            "You have to define at least one trigger.",
+        )));
     }
 
     while let Ok(Some(())) = rx.recv() {
@@ -61,5 +67,15 @@ mod tests {
 
         let result = start(&triggers, &mut check, &actions);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn it_should_call_fail_without_triggers() {
+        let triggers: Vec<Box<dyn Trigger>> = vec![];
+        let mut check: Box<dyn Check> = Box::new(TestCheck::new());
+        let actions: Vec<Box<dyn Action>> = vec![Box::new(TestAction::new())];
+
+        let result = start(&triggers, &mut check, &actions);
+        assert!(result.is_err());
     }
 }
