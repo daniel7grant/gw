@@ -9,7 +9,7 @@
 //! and runs the actions if there was. Actions are arbitrary code that runs
 //! (e.g. user-defined shell scripts).
 //!
-//! ```
+//! ```ignore
 //! +---------+       +--------+       +--------+
 //! | trigger | ----> | checks | ----> | action |
 //! +---------+       +--------+       +--------+

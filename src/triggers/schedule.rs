@@ -1,11 +1,12 @@
 use super::Trigger;
 use crate::Result;
+use std::sync::mpsc::Sender;
 
 /// A trigger that runs the checks periodically
-struct ScheduleTrigger;
+pub struct ScheduleTrigger;
 
 impl Trigger for ScheduleTrigger {
-    fn listen(self: Self) -> Result<()> {
+    fn listen(&self, tx: &Sender<Option<()>>) -> Result<()> {
         todo!()
     }
 }

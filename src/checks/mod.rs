@@ -2,6 +2,8 @@ use crate::Result;
 
 /// A check to fetch and pull a local git repository
 pub mod git;
+/// Test implementation of check, internal use only
+pub mod test;
 /// A check to watch a directory for changes
 pub mod watch;
 
