@@ -37,7 +37,7 @@ fn start(
 
 fn main() -> Result<()> {
     let triggers: Vec<Box<dyn Trigger>> = vec![
-        Box::new(HttpTrigger),
+        Box::new(HttpTrigger::new(String::from("0.0.0.0:8000"))),
         Box::new(ScheduleTrigger::new(Duration::from_secs(1))),
     ];
     let mut check: Box<dyn Check> = Box::new(checks::git::GitCheck);
