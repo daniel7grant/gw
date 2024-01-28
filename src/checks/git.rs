@@ -1,10 +1,10 @@
-use self::git::GitRepository;
+use self::repository::GitRepository;
 
 use super::Check;
 use crate::Result;
 
-mod git;
-mod git_credentials;
+mod repository;
+mod credentials;
 
 /// A check to fetch and pull a local git repository.
 pub struct GitCheck(pub GitRepository);

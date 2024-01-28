@@ -1,4 +1,4 @@
-use super::git_credentials::CredentialHandler;
+use super::credentials::CredentialHandler;
 use crate::Result;
 use git2::{
     AnnotatedCommit, AutotagOption, Error as GitError, FetchOptions, RemoteCallbacks, Repository,
