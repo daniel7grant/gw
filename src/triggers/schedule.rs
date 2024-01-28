@@ -3,7 +3,7 @@ use crate::Result;
 use duration_string::DurationString;
 use std::{
     sync::mpsc::Sender,
-    thread::{self, sleep},
+    thread::sleep,
     time::{Duration, Instant},
 };
 
@@ -34,8 +34,8 @@ impl ScheduleTrigger {
     /// returns false in case of an error or a timeout. One step should take exactly the duration.
     /// In case of an error it terminates with false or if it will reach the final timeout it will
     /// wait until the end of the timeout and returns with false.
-    fn step(tx: Sender<Option<()>>, duration: Duration, final_timeout: Option<Instant>) -> bool {
-        let next_check = Instant::now() + duration;
+    pub fn step(&self, tx: Sender<Option<()>>, final_timeout: Option<Instant>) -> bool {
+        let next_check = Instant::now() + self.duration;
         if let Err(_) = tx.send(Some(())) {
             return false;
         }
@@ -59,21 +59,18 @@ impl Trigger for ScheduleTrigger {
     /// it terminates or if it will reach the final timeout it will wait until
     /// the end of the timeout and return.
     fn listen(&self, tx: Sender<Option<()>>) -> Result<()> {
-        let duration = self.duration;
         let final_timeout = self.timeout.map(|t| Instant::now() + t);
-        thread::spawn(move || {
-            println!(
-                "Starting schedule in every {}.",
-                DurationString::new(duration)
-            );
+        println!(
+            "Starting schedule in every {}.",
+            DurationString::new(self.duration)
+        );
 
-            loop {
-                let should_continue = ScheduleTrigger::step(tx.clone(), duration, final_timeout);
-                if !should_continue {
-                    break;
-                }
+        loop {
+            let should_continue = self.step(tx.clone(), final_timeout);
+            if !should_continue {
+                break;
             }
-        });
+        }
 
         Ok(())
     }
@@ -110,7 +107,7 @@ mod tests {
         for _ in 0..5 {
             let start = Instant::now();
 
-            let should_continue = ScheduleTrigger::step(tx.clone(), trigger.duration, None);
+            let should_continue = trigger.step(tx.clone(), None);
             assert!(should_continue);
 
             // It should be close to the timings
@@ -123,12 +120,12 @@ mod tests {
 
     #[test]
     fn it_should_not_continue_after_the_timeout() {
+        let trigger = ScheduleTrigger::new(Duration::from_millis(100));
         let (tx, _rx) = mpsc::channel::<Option<()>>();
 
         let final_timeout = Instant::now() + Duration::from_millis(350);
         for i in 0..5 {
-            let should_continue =
-                ScheduleTrigger::step(tx.clone(), Duration::from_millis(100), Some(final_timeout));
+            let should_continue = trigger.step(tx.clone(), Some(final_timeout));
 
             // First three should pass, last two fail
             if i < 3 {
@@ -146,14 +143,14 @@ mod tests {
 
     #[test]
     fn it_should_not_trigger_on_a_send_error() {
+        let trigger = ScheduleTrigger::new(Duration::from_millis(100));
         let (tx, rx) = mpsc::channel::<Option<()>>();
 
         // Close receiving end, to create a send error
         drop(rx);
 
         let final_timeout = Instant::now() + Duration::from_millis(350);
-        let should_continue =
-            ScheduleTrigger::step(tx.clone(), Duration::from_millis(100), Some(final_timeout));
+        let should_continue = trigger.step(tx.clone(), Some(final_timeout));
 
         // It should fail, because of error
         assert!(!should_continue);

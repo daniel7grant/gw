@@ -16,7 +16,7 @@ pub mod test;
 ///   - schedules
 ///   - HTTP servers
 ///   - etc.
-pub trait Trigger {
+pub trait Trigger: Sync + Send {
     /// Start the trigger process.
     fn listen(&self, tx: Sender<Option<()>>) -> Result<()>;
 }

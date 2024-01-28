@@ -5,26 +5,31 @@ use gw_bin::{
     triggers::{http::HttpTrigger, once::OnceTrigger, schedule::ScheduleTrigger, Trigger},
     Result,
 };
-use std::{error::Error, process, sync::mpsc, time::Duration};
+use std::{error::Error, process, sync::mpsc, thread, time::Duration};
 
 mod args;
 
 fn start(
-    triggers: &Vec<Box<dyn Trigger>>,
+    triggers: Vec<Box<dyn Trigger>>,
     check: &mut Box<dyn Check>,
     actions: &Vec<Box<dyn Action>>,
 ) -> Result<()> {
     let (tx, rx) = mpsc::channel::<Option<()>>();
 
-    if triggers.len() > 0 {
-        for trigger in triggers {
-            let tx = tx.clone();
-            trigger.listen(tx)?;
-        }
-    } else {
+    if triggers.len() == 0 {
         return Err(Box::<dyn Error>::from(String::from(
             "You have to define at least one trigger.",
         )));
+    }
+
+    for trigger in triggers {
+        let tx = tx.clone();
+        thread::spawn(move || {
+            let result = trigger.listen(tx);
+            if let Err(err) = result {
+                println!("Trigger failed: {err}.");
+            }
+        });
     }
 
     while let Ok(Some(())) = rx.recv() {
@@ -68,7 +73,7 @@ fn main() -> Result<()> {
     }
 
     // Start the main script.
-    match start(&triggers, &mut check, &mut actions) {
+    match start(triggers, &mut check, &actions) {
         Ok(()) => Ok(()),
         Err(err) => {
             eprintln!("{}", err);
@@ -79,13 +84,12 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use crate::start;
     use gw_bin::{
         actions::{test::TestAction, Action},
         checks::{test::TestCheck, Check},
         triggers::{test::TestTrigger, Trigger},
     };
-
-    use crate::start;
 
     #[test]
     fn it_should_call_once() {
@@ -93,7 +97,7 @@ mod tests {
         let mut check: Box<dyn Check> = Box::new(TestCheck::new());
         let actions: Vec<Box<dyn Action>> = vec![Box::new(TestAction::new())];
 
-        let result = start(&triggers, &mut check, &actions);
+        let result = start(triggers, &mut check, &actions);
         assert!(result.is_ok());
     }
 
@@ -103,7 +107,7 @@ mod tests {
         let mut check: Box<dyn Check> = Box::new(TestCheck::new());
         let actions: Vec<Box<dyn Action>> = vec![Box::new(TestAction::new())];
 
-        let result = start(&triggers, &mut check, &actions);
+        let result = start(triggers, &mut check, &actions);
         assert!(result.is_err());
     }
 }
