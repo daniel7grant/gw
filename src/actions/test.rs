@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use super::Action;
 use crate::Result;
 
-/// Test implementation of an action
+/// Test implementation of an action.
 pub struct TestAction {
     pub calls: RefCell<u8>,
 }

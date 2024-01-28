@@ -2,7 +2,7 @@ use super::Trigger;
 use crate::Result;
 use std::sync::mpsc::Sender;
 
-/// Test implementation for trigger
+/// Test implementation for trigger.
 pub struct TestTrigger;
 
 impl TestTrigger {
@@ -12,7 +12,7 @@ impl TestTrigger {
 }
 
 impl Trigger for TestTrigger {
-    /// Trigger once and exit
+    /// Trigger once and exit for testing.
     fn listen(&self, tx: Sender<Option<()>>) -> Result<()> {
         tx.send(Some(()))?;
         tx.send(None)?;

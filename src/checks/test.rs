@@ -1,7 +1,7 @@
 use super::Check;
 use crate::Result;
 
-/// Test implementation of a check
+/// Test implementation of a check.
 pub struct TestCheck;
 
 impl TestCheck {

@@ -1,8 +1,8 @@
 use crate::Result;
 
-/// An action to run a custom shell script
+/// An action to run a custom shell script.
 pub mod script;
-/// Test implementation of an action, internal use only
+/// Test implementation of an action, internal use only.
 pub mod test;
 
 /// An action is a process that runs if any changes occured.

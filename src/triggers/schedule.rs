@@ -22,7 +22,7 @@ impl ScheduleTrigger {
         }
     }
 
-    /// Creates a new ScheduleTrigger with duration and timeout
+    /// Creates a new ScheduleTrigger with duration and timeout.
     pub fn new_with_timeout(duration: Duration, timeout: Duration) -> Self {
         Self {
             duration,
