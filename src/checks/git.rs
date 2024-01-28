@@ -11,8 +11,8 @@ pub struct GitCheck(pub GitRepository);
 
 impl GitCheck {
     /// Open the git repository at the given directory.
-    pub fn open(directory: String) -> Result<Self> {
-        let repo = GitRepository::open(&directory)?;
+    pub fn open(directory: &str) -> Result<Self> {
+        let repo = GitRepository::open(directory)?;
         Ok(GitCheck(repo))
     }
 }
@@ -92,7 +92,7 @@ mod tests {
 
         create_empty_repository(&local)?;
 
-        let _ = GitCheck::open(local.clone())?;
+        let _ = GitCheck::open(&local)?;
 
         cleanup_repository(&local)?;
 
@@ -106,7 +106,7 @@ mod tests {
 
         create_empty_repository(&local)?;
 
-        let mut check = GitCheck::open(local.clone())?;
+        let mut check = GitCheck::open(&local)?;
         let is_pulled = check.check()?;
         assert!(!is_pulled);
 
@@ -125,7 +125,7 @@ mod tests {
         // Create another repository and push a new commit 
         create_other_repository(&local)?;
 
-        let mut check = GitCheck::open(local.clone())?;
+        let mut check = GitCheck::open(&local)?;
         let is_pulled = check.check()?;
         assert!(is_pulled);
 

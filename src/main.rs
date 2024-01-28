@@ -1,10 +1,13 @@
+use args::parse_args;
 use gw_bin::{
-    actions::Action,
+    actions::{script::ScriptAction, Action},
     checks::{git::GitCheck, Check},
-    triggers::{http::HttpTrigger, schedule::ScheduleTrigger, Trigger},
+    triggers::{http::HttpTrigger, once::OnceTrigger, schedule::ScheduleTrigger, Trigger},
     Result,
 };
 use std::{error::Error, process, sync::mpsc, time::Duration};
+
+mod args;
 
 fn start(
     triggers: &Vec<Box<dyn Trigger>>,
@@ -36,17 +39,39 @@ fn start(
 }
 
 fn main() -> Result<()> {
-    let triggers: Vec<Box<dyn Trigger>> = vec![
-        Box::new(HttpTrigger::new(String::from("0.0.0.0:8000"))),
-        Box::new(ScheduleTrigger::new(Duration::from_secs(1))),
-    ];
-    let mut check: Box<dyn Check> = Box::new(GitCheck::open(String::from("."))?);
-    let mut actions: Vec<Box<dyn Action>> = vec![];
+    let args = parse_args();
 
+    // Setup triggers.
+    let mut triggers: Vec<Box<dyn Trigger>> = vec![];
+    if args.once {
+        triggers.push(Box::new(OnceTrigger));
+    } else {
+        let duration: Duration = args.delay.into();
+        if !duration.is_zero() {
+            triggers.push(Box::new(ScheduleTrigger::new(duration)));
+        }
+        if let Some(http) = args.http {
+            triggers.push(Box::new(HttpTrigger::new(http)));
+        }
+    }
+
+    // Setup check.
+    let directory = args.directory.ok_or(Box::<dyn Error>::from(String::from(
+        "You have to pass a directory to watch.",
+    )))?;
+    let mut check: Box<dyn Check> = Box::new(GitCheck::open(&directory)?);
+
+    // Setup actions.
+    let mut actions: Vec<Box<dyn Action>> = vec![];
+    for script in args.scripts {
+        actions.push(Box::new(ScriptAction::new(directory.clone(), script)));
+    }
+
+    // Start the main script.
     match start(&triggers, &mut check, &mut actions) {
         Ok(()) => Ok(()),
         Err(err) => {
-            eprintln!("{}", err.to_string());
+            eprintln!("{}", err);
             process::exit(1);
         }
     }
