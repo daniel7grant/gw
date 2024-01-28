@@ -6,7 +6,7 @@ use std::sync::mpsc::Sender;
 pub struct OnceTrigger;
 
 impl Trigger for OnceTrigger {
-    fn listen(&self, tx: &Sender<Option<()>>) -> Result<()> {
+    fn listen(&self, tx: Sender<Option<()>>) -> Result<()> {
         tx.send(Some(()))?;
 		tx.send(None)?;
         Ok(())

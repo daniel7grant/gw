@@ -4,7 +4,7 @@ use gw_bin::{
     triggers::{http::HttpTrigger, schedule::ScheduleTrigger, Trigger},
     Result,
 };
-use std::{error::Error, process, sync::mpsc};
+use std::{error::Error, process, sync::mpsc, time::Duration};
 
 fn start(
     triggers: &Vec<Box<dyn Trigger>>,
@@ -16,7 +16,7 @@ fn start(
     if triggers.len() > 0 {
         for trigger in triggers {
             let tx = tx.clone();
-            trigger.listen(&tx)?;
+            trigger.listen(tx)?;
         }
     } else {
         return Err(Box::<dyn Error>::from(String::from(
@@ -36,7 +36,10 @@ fn start(
 }
 
 fn main() -> Result<()> {
-    let triggers: Vec<Box<dyn Trigger>> = vec![Box::new(HttpTrigger), Box::new(ScheduleTrigger)];
+    let triggers: Vec<Box<dyn Trigger>> = vec![
+        Box::new(HttpTrigger),
+        Box::new(ScheduleTrigger::new(Duration::from_secs(1))),
+    ];
     let mut check: Box<dyn Check> = Box::new(checks::git::GitCheck);
     let mut actions: Vec<Box<dyn Action>> = vec![];
 

@@ -13,7 +13,7 @@ impl TestTrigger {
 
 impl Trigger for TestTrigger {
     /// Trigger once and exit
-    fn listen(&self, tx: &Sender<Option<()>>) -> Result<()> {
+    fn listen(&self, tx: Sender<Option<()>>) -> Result<()> {
         tx.send(Some(()))?;
         tx.send(None)?;
         Ok(())

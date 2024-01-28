@@ -6,7 +6,7 @@ use std::sync::mpsc::Sender;
 pub struct HttpTrigger;
 
 impl Trigger for HttpTrigger {
-    fn listen(&self, tx: &Sender<Option<()>>) -> Result<()> {
+    fn listen(&self, _tx: Sender<Option<()>>) -> Result<()> {
         todo!()
     }
 }

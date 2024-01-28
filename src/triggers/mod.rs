@@ -18,5 +18,5 @@ pub mod test;
 ///   - etc.
 pub trait Trigger {
     /// Start the trigger process.
-    fn listen(&self, tx: &Sender<Option<()>>) -> Result<()>;
+    fn listen(&self, tx: Sender<Option<()>>) -> Result<()>;
 }
