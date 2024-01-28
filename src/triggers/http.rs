@@ -41,7 +41,7 @@ impl Trigger for HttpTrigger {
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::mpsc, thread};
+    use std::{sync::mpsc, thread::{self, sleep}, time::Duration};
 
     use super::*;
 
@@ -59,6 +59,9 @@ mod tests {
         thread::spawn(move || {
             let _ = trigger.listen(tx);
         });
+
+		// Sleep for the HTTP server to start up.
+		sleep(Duration::from_millis(100));
 
         let result = ureq::get("http://localhost:1234").call()?;
         assert_eq!(200, result.status());
