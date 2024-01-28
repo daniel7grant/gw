@@ -82,6 +82,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "duct_sh"
+version = "0.13.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a6633cadba557545fbbe0299a2f9adc4bb2fc5fb238773f5e841e0c23d62146"
+dependencies = [
+ "duct",
+]
+
+[[package]]
 name = "duration-string"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -148,6 +157,7 @@ version = "0.1.1"
 dependencies = [
  "dirs",
  "duct",
+ "duct_sh",
  "duration-string",
  "git2",
  "gumdrop",

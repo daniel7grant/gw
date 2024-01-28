@@ -1,7 +1,7 @@
 use crate::Result;
 
 /// An action to run a custom shell script.
-pub mod script;
+pub mod command;
 /// Test implementation of an action, internal use only.
 pub mod test;
 
