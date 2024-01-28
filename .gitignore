@@ -1,2 +1,4 @@
 target
 docs/public
+test_directories/*
+!test_directories/.keep

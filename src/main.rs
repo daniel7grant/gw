@@ -1,6 +1,6 @@
 use gw_bin::{
     actions::Action,
-    checks::{self, Check},
+    checks::{git::GitCheck, Check},
     triggers::{http::HttpTrigger, schedule::ScheduleTrigger, Trigger},
     Result,
 };
@@ -40,7 +40,7 @@ fn main() -> Result<()> {
         Box::new(HttpTrigger::new(String::from("0.0.0.0:8000"))),
         Box::new(ScheduleTrigger::new(Duration::from_secs(1))),
     ];
-    let mut check: Box<dyn Check> = Box::new(checks::git::GitCheck);
+    let mut check: Box<dyn Check> = Box::new(GitCheck::open(String::from("."))?);
     let mut actions: Vec<Box<dyn Action>> = vec![];
 
     match start(&triggers, &mut check, &mut actions) {
