@@ -1,4 +1,5 @@
 use crate::Result;
+use mockall::automock;
 use std::sync::mpsc::Sender;
 
 /// A trigger that runs on an HTTP request.
@@ -7,8 +8,6 @@ pub mod http;
 pub mod once;
 /// A trigger that runs the checks periodically.
 pub mod schedule;
-/// Test implementation for trigger, internal use only.
-pub mod test;
 
 /// A trigger is a long running background process, which initiates the checks.
 ///
@@ -16,6 +15,7 @@ pub mod test;
 ///   - schedules
 ///   - HTTP servers
 ///   - etc.
+#[automock]
 pub trait Trigger: Sync + Send {
     /// Start the trigger process.
     fn listen(&self, tx: Sender<Option<()>>) -> Result<()>;

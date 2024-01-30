@@ -86,26 +86,75 @@ fn main() -> Result<()> {
 mod tests {
     use crate::start;
     use gw_bin::{
-        actions::{test::TestAction, Action},
-        checks::{test::TestCheck, Check},
-        triggers::{test::TestTrigger, Trigger},
+        actions::{Action, MockAction},
+        checks::{Check, MockCheck},
+        triggers::{MockTrigger, Trigger},
     };
 
     #[test]
     fn it_should_call_once() {
-        let triggers: Vec<Box<dyn Trigger>> = vec![Box::new(TestTrigger::new())];
-        let mut check: Box<dyn Check> = Box::new(TestCheck::new());
-        let actions: Vec<Box<dyn Action>> = vec![Box::new(TestAction::new())];
+        // Setup mock triggers.
+        let mut mock_trigger = MockTrigger::new();
+        mock_trigger.expect_listen().returning(|tx| {
+            tx.send(Some(()))?;
+            tx.send(None)?;
+            Ok(())
+        });
+        let triggers: Vec<Box<dyn Trigger>> = vec![Box::new(mock_trigger)];
+
+        // Setup mock check.
+        let mut mock_check = MockCheck::new();
+        mock_check.expect_check().times(1).returning(|| Ok(true));
+        let mut check: Box<dyn Check> = Box::new(mock_check);
+
+        // Setup mock action.
+        let mut mock_action = MockAction::new();
+        mock_action.expect_run().times(1).returning(|| Ok(()));
+        let actions: Vec<Box<dyn Action>> = vec![Box::new(mock_action)];
 
         let result = start(triggers, &mut check, &actions);
         assert!(result.is_ok());
     }
 
     #[test]
-    fn it_should_call_fail_without_triggers() {
+    fn it_should_not_run_on_a_false_check() {
+        // Setup mock triggers.
+        let mut mock_trigger = MockTrigger::new();
+        mock_trigger.expect_listen().returning(|tx| {
+            tx.send(Some(()))?;
+            tx.send(None)?;
+            Ok(())
+        });
+        let triggers: Vec<Box<dyn Trigger>> = vec![Box::new(mock_trigger)];
+
+        // Setup mock check.
+        let mut mock_check = MockCheck::new();
+        mock_check.expect_check().times(1).returning(|| Ok(false));
+        let mut check: Box<dyn Check> = Box::new(mock_check);
+
+        // Setup mock action.
+        let mut mock_action = MockAction::new();
+        mock_action.expect_run().times(0);
+        let actions: Vec<Box<dyn Action>> = vec![Box::new(mock_action)];
+
+        let result = start(triggers, &mut check, &actions);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn it_should_fail_without_triggers() {
+        // Setup empty triggers.
         let triggers: Vec<Box<dyn Trigger>> = vec![];
-        let mut check: Box<dyn Check> = Box::new(TestCheck::new());
-        let actions: Vec<Box<dyn Action>> = vec![Box::new(TestAction::new())];
+
+        // Setup mock check.
+        let mut mock_check = MockCheck::new();
+        mock_check.expect_check().times(0);
+        let mut check: Box<dyn Check> = Box::new(mock_check);
+
+        // Setup mock action.
+        let mut mock_action = MockAction::new();
+        mock_action.expect_run().times(0);
+        let actions: Vec<Box<dyn Action>> = vec![Box::new(mock_action)];
 
         let result = start(triggers, &mut check, &actions);
         assert!(result.is_err());
