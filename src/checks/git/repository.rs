@@ -16,7 +16,7 @@ impl GitRepository {
     }
 
     // Inspired from: https://github.com/rust-lang/git2-rs/blob/master/examples/pull.rs
-    pub fn fetch(self: &Self) -> Result<AnnotatedCommit> {
+    pub fn fetch(&self) -> Result<AnnotatedCommit> {
         let Self { repo, .. } = self;
         let head = repo.head()?;
         let branch_name = head
@@ -51,7 +51,7 @@ impl GitRepository {
         Ok(fetch_commit)
     }
 
-    pub fn check_if_updatable(self: &Self, fetch_commit: &AnnotatedCommit) -> Result<bool> {
+    pub fn check_if_updatable(&self, fetch_commit: &AnnotatedCommit) -> Result<bool> {
         let Self { repo, .. } = self;
         let (analysis, _) = repo.merge_analysis(&[fetch_commit])?;
 
@@ -66,7 +66,7 @@ impl GitRepository {
         }
     }
 
-    pub fn pull(self: &Self, fetch_commit: &AnnotatedCommit) -> Result<bool> {
+    pub fn pull(&self, fetch_commit: &AnnotatedCommit) -> Result<bool> {
         let Self { repo, .. } = self;
         let head = repo.head()?;
         let branch_name = head
@@ -89,7 +89,7 @@ impl GitRepository {
 
         let mut branch_ref = repo.find_reference(&branch_refname)?;
         branch_ref.set_target(fetch_commit.id(), &msg)?;
-        repo.set_head(&name)?;
+        repo.set_head(name)?;
         repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
         Ok(true)
     }

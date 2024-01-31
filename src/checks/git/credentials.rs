@@ -33,10 +33,10 @@ impl CredentialHandler {
             ".ssh/id_ed25519_sk",
             ".ssh/id_rsa",
         ]
-        .into_iter()
-        .map(|key_path| home.join(key_path))
-        .filter(|key_path| key_path.exists())
-        .collect();
+            .into_iter()
+            .map(|key_path| home.join(key_path))
+            .filter(|key_path| key_path.exists())
+            .collect();
 
         CredentialHandler {
             username_attempts_count: 0,
@@ -132,7 +132,7 @@ impl CredentialHandler {
                     let key = self.ssh_key_candidates.get(candidate_idx);
                     match key {
                         // try without passphrase
-                        Some(k) => git2::Cred::ssh_key(u, None, &k, None),
+                        Some(k) => git2::Cred::ssh_key(u, None, k, None),
                         None => Err(git2::Error::from_str(
                             "failed authentication for repository",
                         )),

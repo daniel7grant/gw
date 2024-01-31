@@ -12,11 +12,11 @@ mod args;
 fn start(
     triggers: Vec<Box<dyn Trigger>>,
     check: &mut Box<dyn Check>,
-    actions: &Vec<Box<dyn Action>>,
+    actions: &[Box<dyn Action>],
 ) -> Result<()> {
     let (tx, rx) = mpsc::channel::<Option<()>>();
 
-    if triggers.len() == 0 {
+    if triggers.is_empty() {
         return Err(Box::<dyn Error>::from(String::from(
             "You have to define at least one trigger.",
         )));
@@ -110,7 +110,7 @@ mod tests {
         // Setup mock action.
         let mut mock_action = MockAction::new();
         mock_action.expect_run().times(1).returning(|| Ok(()));
-        let actions: Vec<Box<dyn Action>> = vec![Box::new(mock_action)];
+        let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
 
         let result = start(triggers, &mut check, &actions);
         assert!(result.is_ok());
@@ -135,7 +135,7 @@ mod tests {
         // Setup mock action.
         let mut mock_action = MockAction::new();
         mock_action.expect_run().times(0);
-        let actions: Vec<Box<dyn Action>> = vec![Box::new(mock_action)];
+        let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
 
         let result = start(triggers, &mut check, &actions);
         assert!(result.is_ok());
@@ -154,7 +154,7 @@ mod tests {
         // Setup mock action.
         let mut mock_action = MockAction::new();
         mock_action.expect_run().times(0);
-        let actions: Vec<Box<dyn Action>> = vec![Box::new(mock_action)];
+        let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
 
         let result = start(triggers, &mut check, &actions);
         assert!(result.is_err());

@@ -36,7 +36,7 @@ impl ScheduleTrigger {
     /// wait until the end of the timeout and returns with false.
     pub fn step(&self, tx: Sender<Option<()>>, final_timeout: Option<Instant>) -> bool {
         let next_check = Instant::now() + self.duration;
-        if let Err(_) = tx.send(Some(())) {
+        if tx.send(Some(())).is_err() {
             return false;
         }
         if let Some(final_timeout) = final_timeout {
@@ -49,7 +49,7 @@ impl ScheduleTrigger {
         // TODO: handle overlaps
         let until_next_check = next_check - Instant::now();
         sleep(until_next_check);
-        return true;
+        true
     }
 }
 
