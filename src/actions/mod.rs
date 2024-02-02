@@ -7,7 +7,7 @@ pub mod script;
 /// An action is a process that runs if any changes occured.
 ///
 /// Actions may include:
-///   - running scripts
+///   - running scripts ([script::ScriptAction])
 ///   - etc.
 #[automock]
 pub trait Action {

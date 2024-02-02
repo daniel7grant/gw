@@ -35,7 +35,7 @@ fn start(
     while let Ok(Some(())) = rx.recv() {
         if check.check()? {
             for action in actions.iter() {
-                action.run()?;
+                let _ = action.run();
             }
         }
     }
