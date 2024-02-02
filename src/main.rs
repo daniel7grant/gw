@@ -112,7 +112,7 @@ mod tests {
         mock_action.expect_run().times(1).returning(|| Ok(()));
         let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
 
-        let result = start(triggers, &mut check, &actions);
+        let result = start(triggers, &mut check, actions);
         assert!(result.is_ok());
     }
 
@@ -137,7 +137,7 @@ mod tests {
         mock_action.expect_run().times(0);
         let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
 
-        let result = start(triggers, &mut check, &actions);
+        let result = start(triggers, &mut check, actions);
         assert!(result.is_ok());
     }
 
@@ -156,7 +156,7 @@ mod tests {
         mock_action.expect_run().times(0);
         let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
 
-        let result = start(triggers, &mut check, &actions);
+        let result = start(triggers, &mut check, actions);
         assert!(result.is_err());
     }
 }

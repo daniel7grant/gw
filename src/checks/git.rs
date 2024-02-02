@@ -52,10 +52,10 @@ mod tests {
         fs::create_dir(&remote)?;
         cmd!("git", "init", "--bare").dir(&remote).read()?;
         cmd!("git", "clone", &remote, &local).read()?;
-        fs::write(&format!("{local}/1"), "1")?;
-        cmd!("git", "add", "-A").dir(&local).read()?;
-        cmd!("git", "commit", "-m1").dir(&local).read()?;
-        cmd!("git", "push", "origin", "master").dir(&local).read()?;
+        fs::write(format!("{local}/1"), "1")?;
+        cmd!("git", "add", "-A").dir(local).read()?;
+        cmd!("git", "commit", "-m1").dir(local).read()?;
+        cmd!("git", "push", "origin", "master").dir(local).read()?;
 
         Ok(())
     }
@@ -66,10 +66,10 @@ mod tests {
 
         // Create another directory to push the changes
         cmd!("git", "clone", &remote, &other).read()?;
-        fs::write(&format!("{other}/2"), "2")?;
+        fs::write(format!("{other}/2"), "2")?;
         cmd!("git", "add", "-A").dir(&other).read()?;
         cmd!("git", "commit", "-m1").dir(&other).read()?;
-        cmd!("git", "push", "origin", "master").dir(&other).read()?;
+        cmd!("git", "push", "origin", "master").dir(other).read()?;
 
         Ok(())
     }
@@ -90,13 +90,13 @@ mod tests {
     }
 
     fn create_failing_repository(local: &str, create_commit: bool) -> GwResult<()> {
-        fs::create_dir(&local)?;
-        cmd!("git", "init").dir(&local).read()?;
+        fs::create_dir(local)?;
+        cmd!("git", "init").dir(local).read()?;
 
         if create_commit {
-            fs::write(&format!("{local}/1"), "1")?;
-            cmd!("git", "add", "-A").dir(&local).read()?;
-            cmd!("git", "commit", "-m1").dir(&local).read()?;
+            fs::write(format!("{local}/1"), "1")?;
+            cmd!("git", "add", "-A").dir(local).read()?;
+            cmd!("git", "commit", "-m1").dir(local).read()?;
         }
 
         Ok(())
@@ -105,13 +105,13 @@ mod tests {
     fn create_merge_conflict(local: &str) -> GwResult<()> {
         let other = format!("{local}-other");
 
-        fs::write(&format!("{local}/1"), "11")?;
-        cmd!("git", "add", "-A").dir(&local).read()?;
-        cmd!("git", "commit", "-m1").dir(&local).read()?;
+        fs::write(format!("{local}/1"), "11")?;
+        cmd!("git", "add", "-A").dir(local).read()?;
+        cmd!("git", "commit", "-m1").dir(local).read()?;
 
-        fs::write(&format!("{other}/1"), "12")?;
+        fs::write(format!("{other}/1"), "12")?;
         cmd!("git", "add", "-A").dir(&other).read()?;
-        cmd!("git", "commit", "-m2").dir(&other).read()?;
+        cmd!("git", "commit", "-m2").dir(other).read()?;
 
         Ok(())
     }
@@ -278,6 +278,7 @@ mod tests {
 
         // Set repository to readonly
         let mut perms = fs::metadata(&local)?.permissions();
+        #[allow(clippy::permissions_set_readonly_false)]
         perms.set_readonly(false);
         fs::set_permissions(&local, perms)?;
 

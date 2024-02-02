@@ -105,7 +105,7 @@ impl GitRepository {
     pub fn pull(&self, fetch_commit: &AnnotatedCommit) -> Result<bool, GitError> {
         let Self { repo, .. } = self;
         let head = repo.head().map_err(|_| GitError::NotOnABranch)?;
-        let branch_name = head.shorthand().ok_or_else(|| GitError::NotOnABranch)?;
+        let branch_name = head.shorthand().ok_or(GitError::NotOnABranch)?;
 
         // TODO: Only fetch if the repository is not dirty
 
