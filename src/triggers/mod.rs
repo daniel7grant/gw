@@ -12,8 +12,8 @@ pub mod schedule;
 /// A trigger is a long running background process, which initiates the checks.
 ///
 /// Triggers may include:
-///   - schedules
-///   - HTTP servers
+///   - schedules ([schedule::ScheduleTrigger])
+///   - HTTP servers ([http::HttpTrigger])
 ///   - etc.
 #[automock]
 pub trait Trigger: Sync + Send {

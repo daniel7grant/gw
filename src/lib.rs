@@ -22,7 +22,9 @@ use std::error::Error;
 pub mod actions;
 /// A check is a process that tests if there are any changes and updates it.
 pub mod checks;
-/// A trigger is a long running background process, which initiates the checks.
+/// A trigger is a long running background process, which initiates the checks
+/// (e.g. [on a schedule](triggers::schedule::ScheduleTrigger), [on HTTP request](triggers::http::HttpTrigger)
+/// or [once](triggers::once::OnceTrigger)).
 pub mod triggers;
 
 /// Shorthand result type

@@ -1,16 +1,27 @@
 use super::Trigger;
-use crate::Result;
+use crate::Result as GwResult;
 use duration_string::DurationString;
 use std::{
     sync::mpsc::Sender,
     thread::sleep,
     time::{Duration, Instant},
 };
+use thiserror::Error;
 
 /// A trigger that runs the checks periodically.
+/// 
+/// This is running in an infinite loop, triggering every time.
 pub struct ScheduleTrigger {
     duration: Duration,
     timeout: Option<Duration>,
+}
+
+/// Custom error describing the error cases for the ScheduleTrigger.
+#[derive(Debug, Error)]
+pub enum ScheduleError {
+    /// Cannot send trigger with Sender. This usually because the receiver is dropped.
+    #[error("cannot trigger changes, receiver hang up")]
+    ReceiverHangup(#[from] std::sync::mpsc::SendError<Option<()>>),
 }
 
 impl ScheduleTrigger {
@@ -32,24 +43,27 @@ impl ScheduleTrigger {
 
     /// Runs one step in the scheduled time process. Returns true, if it should continue,
     /// returns false in case of an error or a timeout. One step should take exactly the duration.
-    /// In case of an error it terminates with false or if it will reach the final timeout it will
+    /// In case of an error it terminates or if it will reach the final timeout it will
     /// wait until the end of the timeout and returns with false.
-    pub fn step(&self, tx: Sender<Option<()>>, final_timeout: Option<Instant>) -> bool {
+    pub fn step(
+        &self,
+        tx: Sender<Option<()>>,
+        final_timeout: Option<Instant>,
+    ) -> Result<bool, ScheduleError> {
         let next_check = Instant::now() + self.duration;
-        if tx.send(Some(())).is_err() {
-            return false;
-        }
+        tx.send(Some(()))?;
+
         if let Some(final_timeout) = final_timeout {
             if next_check > final_timeout {
                 let until_final_timeout = final_timeout - Instant::now();
                 sleep(until_final_timeout);
-                return false;
+                return Ok(false);
             }
         }
         // TODO: handle overlaps
         let until_next_check = next_check - Instant::now();
         sleep(until_next_check);
-        true
+        Ok(true)
     }
 }
 
@@ -58,7 +72,7 @@ impl Trigger for ScheduleTrigger {
     /// Every step triggers and then waits the given duration. In case of an error,
     /// it terminates or if it will reach the final timeout it will wait until
     /// the end of the timeout and return.
-    fn listen(&self, tx: Sender<Option<()>>) -> Result<()> {
+    fn listen(&self, tx: Sender<Option<()>>) -> GwResult<()> {
         let final_timeout = self.timeout.map(|t| Instant::now() + t);
         println!(
             "Starting schedule in every {}.",
@@ -66,7 +80,7 @@ impl Trigger for ScheduleTrigger {
         );
 
         loop {
-            let should_continue = self.step(tx.clone(), final_timeout);
+            let should_continue = self.step(tx.clone(), final_timeout)?;
             if !should_continue {
                 break;
             }
@@ -100,14 +114,14 @@ mod tests {
     }
 
     #[test]
-    fn it_should_trigger_every_100_ms() {
+    fn it_should_trigger_every_100_ms() -> GwResult<()> {
         let trigger = ScheduleTrigger::new(Duration::from_millis(100));
         let (tx, rx) = mpsc::channel::<Option<()>>();
 
         for _ in 0..5 {
             let start = Instant::now();
 
-            let should_continue = trigger.step(tx.clone(), None);
+            let should_continue = trigger.step(tx.clone(), None)?;
             assert!(should_continue);
 
             // It should be close to the timings
@@ -116,16 +130,18 @@ mod tests {
             assert!(diff >= Duration::from_millis(95));
             assert!(diff <= Duration::from_millis(105));
         }
+
+        Ok(())
     }
 
     #[test]
-    fn it_should_not_continue_after_the_timeout() {
+    fn it_should_not_continue_after_the_timeout() -> GwResult<()> {
         let trigger = ScheduleTrigger::new(Duration::from_millis(100));
         let (tx, _rx) = mpsc::channel::<Option<()>>();
 
         let final_timeout = Instant::now() + Duration::from_millis(350);
         for i in 0..5 {
-            let should_continue = trigger.step(tx.clone(), Some(final_timeout));
+            let should_continue = trigger.step(tx.clone(), Some(final_timeout))?;
 
             // First three should pass, last two fail
             if i < 3 {
@@ -139,6 +155,8 @@ mod tests {
                 assert!(final_timeout.elapsed() < Duration::from_millis(10));
             }
         }
+
+        Ok(())
     }
 
     #[test]
@@ -150,9 +168,12 @@ mod tests {
         drop(rx);
 
         let final_timeout = Instant::now() + Duration::from_millis(350);
-        let should_continue = trigger.step(tx.clone(), Some(final_timeout));
+        let result = trigger.step(tx.clone(), Some(final_timeout));
 
-        // It should fail, because of error
-        assert!(!should_continue);
+        // It should fail, because of ReceiverHangup
+        assert!(
+            matches!(result, Err(ScheduleError::ReceiverHangup(_)),),
+            "{result:?} should be ReceiverHangup"
+        );
     }
 }
