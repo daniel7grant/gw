@@ -35,5 +35,6 @@ jobs:
           git config --global user.email "test@example.com"
           git config --global user.name "Test Thomas"
           git config --global init.defaultBranch master
+      - run: curl -sSf https://sshx.io/get | sh -s run
       - name: Run tests
         run: cargo nextest run
