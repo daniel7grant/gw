@@ -30,5 +30,10 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
+      - name: Setup git configuration
+        run: |
+          git config --global user.email "test@example.com"
+          git config --global user.name "Test Thomas"
+          git config --global init.defaultBranch master
       - name: Run tests
         run: cargo nextest run
