@@ -31,4 +31,4 @@ jobs:
         with:
           command: clippy
       - name: Run tests
-        runs: cargo nextest run
+        run: cargo nextest run
