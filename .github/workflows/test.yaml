@@ -31,6 +31,4 @@ jobs:
         with:
           command: clippy
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: nextest run
+        runs: cargo nextest run
