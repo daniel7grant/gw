@@ -1,18 +1,32 @@
-use crate::{actions::Action, checks::Check, triggers::Trigger, Result};
-use std::{error::Error, sync::mpsc, thread};
+use crate::{
+    actions::Action,
+    checks::{Check, CheckError},
+    triggers::{Trigger, TriggerError},
+};
+use std::{sync::mpsc, thread};
+use thiserror::Error;
 
-/// The main program loop. It takes a list of triggers, one check and list of actions.
+/// A custom error implementation for the start function
+#[derive(Debug, Error)]
+pub enum StartError {
+    #[error("You have to define at least one trigger.")]
+    NoTriggers,
+    #[error("Trigger failed: {0}.")]
+    MisconfiguredTrigger(#[from] TriggerError),
+    #[error("Check failed: {0}.")]
+    FailedCheck(#[from] CheckError),
+}
+
+/// The main program loop, that runs the triggers, checks and actions infinitely.
 pub fn start(
     triggers: Vec<Box<dyn Trigger>>,
     check: &mut Box<dyn Check>,
     actions: &[Box<dyn Action>],
-) -> Result<()> {
+) -> Result<(), StartError> {
     let (tx, rx) = mpsc::channel::<Option<()>>();
 
     if triggers.is_empty() {
-        return Err(Box::<dyn Error>::from(String::from(
-            "You have to define at least one trigger.",
-        )));
+        return Err(StartError::NoTriggers);
     }
 
     for trigger in triggers {

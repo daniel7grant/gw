@@ -16,18 +16,13 @@
 //! ```
 //!
 
-use std::error::Error;
-
 /// An action is a process that runs if any changes occured (e.g. [running scripts](actions::script::ScriptAction)).
 pub mod actions;
 /// A check is a process that tests if there are any changes and updates it.
 pub mod checks;
-/// The main program loop
+/// The main program loop, that runs the triggers, checks and actions infinitely.
 pub mod start;
 /// A trigger is a long running background process, which initiates the checks
 /// (e.g. [on a schedule](triggers::schedule::ScheduleTrigger), [on HTTP request](triggers::http::HttpTrigger)
 /// or [once](triggers::once::OnceTrigger)).
 pub mod triggers;
-
-/// Shorthand result type
-pub type Result<T> = std::result::Result<T, Box<dyn Error>>;

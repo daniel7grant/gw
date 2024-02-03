@@ -1,5 +1,4 @@
-use super::Trigger;
-use crate::Result as GwResult;
+use super::{Trigger, TriggerError};
 use std::sync::mpsc::Sender;
 use thiserror::Error;
 use tiny_http::{Response, Server};
@@ -25,7 +24,17 @@ pub enum HttpError {
     ReceiverHangup(#[from] std::sync::mpsc::SendError<Option<()>>),
     /// Failed to send response.
     #[error("failed to send response")]
-    ResponseFailed(#[from] std::io::Error),
+    FailedResponse(#[from] std::io::Error),
+}
+
+impl From<HttpError> for TriggerError {
+    fn from(val: HttpError) -> Self {
+        match val {
+            HttpError::CantStartServer(s) => TriggerError::Misconfigured(s),
+            HttpError::ReceiverHangup(s) => TriggerError::ReceiverHangup(s),
+            HttpError::FailedResponse(s) => TriggerError::FailedTrigger(s.to_string()),
+        }
+    }
 }
 
 impl HttpTrigger {
@@ -54,7 +63,7 @@ impl Trigger for HttpTrigger {
     /// Starts a minimal HTTP 1.1 server, that triggers on every request.
     ///
     /// Every method and every URL triggers and returns 200 status code with plaintext "OK".
-    fn listen(&self, tx: Sender<Option<()>>) -> GwResult<()> {
+    fn listen(&self, tx: Sender<Option<()>>) -> Result<(), TriggerError> {
         self.listen_inner(tx)?;
 
         Ok(())
@@ -63,13 +72,13 @@ impl Trigger for HttpTrigger {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::{
+        error::Error,
         sync::mpsc,
         thread::{self, sleep},
         time::Duration,
     };
-
-    use super::*;
 
     #[test]
     fn it_should_be_created_from_http_url() {
@@ -78,7 +87,7 @@ mod tests {
     }
 
     #[test]
-    fn it_should_return_ok_on_every_request() -> GwResult<()> {
+    fn it_should_return_ok_on_every_request() -> Result<(), Box<dyn Error>> {
         let trigger = HttpTrigger::new(String::from("0.0.0.0:10101"));
         let (tx, rx) = mpsc::channel::<Option<()>>();
 
@@ -120,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn it_should_fail_if_sending_fails() -> GwResult<()> {
+    fn it_should_fail_if_sending_fails() -> Result<(), Box<dyn Error>> {
         let trigger = HttpTrigger::new(String::from("0.0.0.0:10102"));
         let (tx, rx) = mpsc::channel::<Option<()>>();
 
@@ -131,8 +140,8 @@ mod tests {
             let _ = ureq::get("http://localhost:10102").call();
         });
 
-		// Drop receiver to create a hangup error
-		drop(rx);
+        // Drop receiver to create a hangup error
+        drop(rx);
 
         let result = trigger.listen_inner(tx);
         assert!(

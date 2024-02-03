@@ -1,16 +1,26 @@
 use args::parse_args;
 use gw_bin::{
     actions::{script::ScriptAction, Action},
-    checks::{git::GitCheck, Check},
-    start::start,
+    checks::{git::GitCheck, Check, CheckError},
+    start::{start, StartError},
     triggers::{http::HttpTrigger, once::OnceTrigger, schedule::ScheduleTrigger, Trigger},
-    Result,
 };
-use std::{error::Error, process, time::Duration};
+use std::{process, time::Duration};
+use thiserror::Error;
 
 mod args;
 
-fn main() -> Result<()> {
+#[derive(Debug, Error)]
+pub enum MainError {
+    #[error("You have to pass a directory to watch.")]
+    MissingDirectory,
+    #[error("Check failed: {0}.")]
+    FailedCheck(#[from] CheckError),
+    #[error(transparent)]
+    FailedStart(#[from] StartError),
+}
+
+fn main_inner() -> Result<(), MainError> {
     let args = parse_args();
 
     // Setup triggers.
@@ -28,9 +38,7 @@ fn main() -> Result<()> {
     }
 
     // Setup check.
-    let directory = args.directory.ok_or(Box::<dyn Error>::from(String::from(
-        "You have to pass a directory to watch.",
-    )))?;
+    let directory = args.directory.ok_or(MainError::MissingDirectory)?;
     let mut check: Box<dyn Check> = Box::new(GitCheck::open(&directory)?);
 
     // Setup actions.
@@ -40,11 +48,13 @@ fn main() -> Result<()> {
     }
 
     // Start the main script.
-    match start(triggers, &mut check, &actions) {
-        Ok(()) => Ok(()),
-        Err(err) => {
-            eprintln!("{}", err);
-            process::exit(1);
-        }
+    start(triggers, &mut check, &actions)?;
+    Ok(())
+}
+
+fn main() {
+    if let Err(err) = main_inner() {
+        eprintln!("{err}");
+        process::exit(1);
     }
 }

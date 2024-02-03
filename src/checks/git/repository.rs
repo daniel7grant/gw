@@ -1,40 +1,8 @@
-use std::fmt::Debug;
-
-use super::credentials::CredentialHandler;
+use super::{credentials::CredentialHandler, GitError};
 use git2::{AnnotatedCommit, AutotagOption, FetchOptions, RemoteCallbacks, Repository};
-use thiserror::Error;
 
 pub struct GitRepository {
     repo: Repository,
-}
-
-/// Custom error describing the error cases for the GitCheck.
-#[derive(Debug, Error)]
-pub enum GitError {
-    /// The directory is not a valid git repository.
-    #[error("{0} does not exist, user don't have access or not a git repository")]
-    NotAGitRepository(String),
-    /// There is no branch in the repository currently. It can be a repository
-    /// without any branch, or checked out on a commit.
-    #[error("we are currently not on a branch")]
-    NotOnABranch,
-    /// There is no remote for the current branch. This usually because the branch hasn't been pulled.
-    #[error("branch {0} doesn't have a remote")]
-    NoRemoteForBranch(String),
-    /// There are changes in the directory, avoiding pulling. This is a safety mechanism to avoid pulling
-    /// over local changes, to not overwrite anything important.
-    #[error("there are changes in the directory, not pulling")]
-    DirtyWorkingTree,
-    /// Cannot fetch the current branch. This is possibly a network failure.
-    #[error("cannot fetch, might be a network error")]
-    FetchFailed,
-    /// Cannot pull updates to the current branch. This means either the merge analysis failed
-    /// or there is a merge conflict.
-    #[error("cannot update branch, there is likely a merge conflict")]
-    MergeConflict,
-    /// Cannot set the HEAD to the fetch commit.
-    #[error("could not set HEAD to fetch commit {0}, might be permission issues")]
-    FailedSettingHead(String),
 }
 
 impl GitRepository {

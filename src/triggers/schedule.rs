@@ -1,5 +1,4 @@
-use super::Trigger;
-use crate::Result as GwResult;
+use super::{Trigger, TriggerError};
 use duration_string::DurationString;
 use std::{
     sync::mpsc::Sender,
@@ -9,7 +8,7 @@ use std::{
 use thiserror::Error;
 
 /// A trigger that runs the checks periodically.
-/// 
+///
 /// This is running in an infinite loop, triggering every time.
 pub struct ScheduleTrigger {
     duration: Duration,
@@ -22,6 +21,14 @@ pub enum ScheduleError {
     /// Cannot send trigger with Sender. This usually because the receiver is dropped.
     #[error("cannot trigger changes, receiver hang up")]
     ReceiverHangup(#[from] std::sync::mpsc::SendError<Option<()>>),
+}
+
+impl From<ScheduleError> for TriggerError {
+    fn from(val: ScheduleError) -> Self {
+        match val {
+            ScheduleError::ReceiverHangup(s) => TriggerError::ReceiverHangup(s),
+        }
+    }
 }
 
 impl ScheduleTrigger {
@@ -72,7 +79,7 @@ impl Trigger for ScheduleTrigger {
     /// Every step triggers and then waits the given duration. In case of an error,
     /// it terminates or if it will reach the final timeout it will wait until
     /// the end of the timeout and return.
-    fn listen(&self, tx: Sender<Option<()>>) -> GwResult<()> {
+    fn listen(&self, tx: Sender<Option<()>>) -> Result<(), TriggerError> {
         let final_timeout = self.timeout.map(|t| Instant::now() + t);
         println!(
             "Starting schedule in every {}.",
@@ -92,9 +99,9 @@ impl Trigger for ScheduleTrigger {
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::mpsc, time::Instant};
-
     use super::*;
+    use crate::triggers::TriggerError;
+    use std::{sync::mpsc, time::Instant};
 
     #[test]
     fn it_should_be_created_from_duration() {
@@ -114,7 +121,7 @@ mod tests {
     }
 
     #[test]
-    fn it_should_trigger_every_100_ms() -> GwResult<()> {
+    fn it_should_trigger_every_100_ms() -> Result<(), TriggerError> {
         let trigger = ScheduleTrigger::new(Duration::from_millis(100));
         let (tx, rx) = mpsc::channel::<Option<()>>();
 
@@ -135,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn it_should_not_continue_after_the_timeout() -> GwResult<()> {
+    fn it_should_not_continue_after_the_timeout() -> Result<(), TriggerError> {
         let trigger = ScheduleTrigger::new(Duration::from_millis(100));
         let (tx, _rx) = mpsc::channel::<Option<()>>();
 

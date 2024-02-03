@@ -1,8 +1,6 @@
+use super::{Action, ActionError};
 use duct_sh::sh_dangerous;
 use thiserror::Error;
-
-use super::Action;
-use crate::Result as GwResult;
 
 /// An action to run a custom shell script.
 ///
@@ -28,6 +26,16 @@ pub enum ScriptError {
     /// The script output contains non-UTF8 characters.
     #[error("the script returned invalid characters")]
     NonUtf8Return,
+}
+
+impl From<ScriptError> for ActionError {
+    fn from(value: ScriptError) -> Self {
+        match value {
+            ScriptError::ScriptFailure(_)
+            | ScriptError::NonZeroExitcode(_, _)
+            | ScriptError::NonUtf8Return => ActionError::FailedAction(value.to_string()),
+        }
+    }
 }
 
 impl ScriptAction {
@@ -64,7 +72,7 @@ impl Action for ScriptAction {
     /// Run the script in a subshell (`/bin/sh` on *nix, `cmd.exe` on Windows).
     /// If the script fails to start, return a non-zero error code or prints non-utf8
     /// characters, this function will result in an error.
-    fn run(&self) -> GwResult<()> {
+    fn run(&self) -> Result<(), ActionError> {
         println!(
             "Running script: {} in directory {}.",
             self.command, self.directory
@@ -130,7 +138,8 @@ mod tests {
 
     #[test]
     fn it_should_fail_if_the_script_returns_non_utf8() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("/bin/echo -e '\\xc3\\x28'"));
+        let action =
+            ScriptAction::new(String::from("."), String::from("/bin/echo -e '\\xc3\\x28'"));
 
         let result = action.run_inner();
         assert!(

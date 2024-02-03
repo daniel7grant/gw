@@ -1,5 +1,4 @@
-use super::Trigger;
-use crate::Result;
+use super::{Trigger, TriggerError};
 use std::sync::mpsc::Sender;
 
 /// A trigger that runs the checks once and then exits.
@@ -7,7 +6,7 @@ pub struct OnceTrigger;
 
 impl Trigger for OnceTrigger {
     /// Starts a trigger that runs once and terminates after.
-    fn listen(&self, tx: Sender<Option<()>>) -> Result<()> {
+    fn listen(&self, tx: Sender<Option<()>>) -> Result<(), TriggerError> {
         tx.send(Some(()))?;
         tx.send(None)?;
         Ok(())
