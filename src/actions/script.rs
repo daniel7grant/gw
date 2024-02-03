@@ -1,5 +1,6 @@
 use super::{Action, ActionError};
 use duct_sh::sh_dangerous;
+use log::{debug, error};
 use thiserror::Error;
 
 /// An action to run a custom shell script.
@@ -73,18 +74,18 @@ impl Action for ScriptAction {
     /// If the script fails to start, return a non-zero error code or prints non-utf8
     /// characters, this function will result in an error.
     fn run(&self) -> Result<(), ActionError> {
-        println!(
+        debug!(
             "Running script: {} in directory {}.",
             self.command, self.directory
         );
 
         match self.run_inner() {
             Ok(result) => {
-                println!("Command success: {result}.");
+                debug!("Command success: {result}.");
                 Ok(())
             }
             Err(err) => {
-                println!("Failed: {err}.");
+                error!("Failed: {err}.");
                 Err(err.into())
             }
         }

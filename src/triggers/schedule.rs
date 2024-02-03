@@ -1,5 +1,6 @@
 use super::{Trigger, TriggerError};
 use duration_string::DurationString;
+use log::info;
 use std::{
     sync::mpsc::Sender,
     thread::sleep,
@@ -81,7 +82,7 @@ impl Trigger for ScheduleTrigger {
     /// the end of the timeout and return.
     fn listen(&self, tx: Sender<Option<()>>) -> Result<(), TriggerError> {
         let final_timeout = self.timeout.map(|t| Instant::now() + t);
-        println!(
+        info!(
             "Starting schedule in every {}.",
             DurationString::new(self.duration)
         );

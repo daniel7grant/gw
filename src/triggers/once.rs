@@ -1,4 +1,5 @@
 use super::{Trigger, TriggerError};
+use log::info;
 use std::sync::mpsc::Sender;
 
 /// A trigger that runs the checks once and then exits.
@@ -7,6 +8,7 @@ pub struct OnceTrigger;
 impl Trigger for OnceTrigger {
     /// Starts a trigger that runs once and terminates after.
     fn listen(&self, tx: Sender<Option<()>>) -> Result<(), TriggerError> {
+        info!("Triggering only once.");
         tx.send(Some(()))?;
         tx.send(None)?;
         Ok(())

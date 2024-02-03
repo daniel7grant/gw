@@ -1,5 +1,6 @@
 use super::{Trigger, TriggerError};
 use std::sync::mpsc::Sender;
+use log::{debug, info};
 use thiserror::Error;
 use tiny_http::{Response, Server};
 
@@ -47,9 +48,9 @@ impl HttpTrigger {
     fn listen_inner(&self, tx: Sender<Option<()>>) -> Result<(), HttpError> {
         let listener =
             Server::http(&self.http).map_err(|_| HttpError::CantStartServer(self.http.clone()))?;
-        println!("Listening on {}...", self.http);
+        info!("Listening on {}...", self.http);
         for request in listener.incoming_requests() {
-            println!("Received request on {} {}", request.method(), request.url());
+            debug!("Received request on {} {}", request.method(), request.url());
 
             tx.send(Some(())).map_err(HttpError::from)?;
 

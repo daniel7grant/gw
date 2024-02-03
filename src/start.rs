@@ -4,6 +4,7 @@ use crate::{
     triggers::{Trigger, TriggerError},
 };
 use std::{sync::mpsc, thread};
+use log::{debug, error};
 use thiserror::Error;
 
 /// A custom error implementation for the start function
@@ -34,23 +35,25 @@ pub fn start(
         thread::spawn(move || {
             let result = trigger.listen(tx);
             if let Err(err) = result {
-                println!("Trigger failed: {err}.");
+                error!("Trigger failed: {err}.");
             }
         });
     }
 
+	debug!("Waiting on triggers.");
     while let Ok(Some(())) = rx.recv() {
         match check.check() {
             Ok(true) => {
-                for action in actions.iter() {
+				debug!("There are updates, running scripts.");
+                for action in actions {
                     let _ = action.run();
                 }
             }
             Ok(false) => {
-                // No action if we didn't update
+				debug!("There are no updates.");
             }
             Err(err) => {
-                println!("Check failed: {err}.");
+                error!("Check failed: {err}.");
             }
         }
     }
