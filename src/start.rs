@@ -40,9 +40,17 @@ pub fn start(
     }
 
     while let Ok(Some(())) = rx.recv() {
-        if check.check()? {
-            for action in actions.iter() {
-                let _ = action.run();
+        match check.check() {
+            Ok(true) => {
+                for action in actions.iter() {
+                    let _ = action.run();
+                }
+            }
+            Ok(false) => {
+                // No action if we didn't update
+            }
+            Err(err) => {
+                println!("Check failed: {err}.");
             }
         }
     }
@@ -98,6 +106,34 @@ mod tests {
         // Setup mock check.
         let mut mock_check = MockCheck::new();
         mock_check.expect_check().times(1).returning(|| Ok(false));
+        let mut check: Box<dyn Check> = Box::new(mock_check);
+
+        // Setup mock action.
+        let mut mock_action = MockAction::new();
+        mock_action.expect_run().times(0);
+        let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
+
+        let result = start(triggers, &mut check, actions);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn it_should_not_run_on_a_failed_check() {
+        // Setup mock triggers.
+        let mut mock_trigger = MockTrigger::new();
+        mock_trigger.expect_listen().returning(|tx| {
+            tx.send(Some(()))?;
+            tx.send(None)?;
+            Ok(())
+        });
+        let triggers: Vec<Box<dyn Trigger>> = vec![Box::new(mock_trigger)];
+
+        // Setup mock check.
+        let mut mock_check = MockCheck::new();
+        mock_check
+            .expect_check()
+            .times(1)
+            .returning(|| Err(CheckError::Misconfigured(String::from("Testing purposes."))));
         let mut check: Box<dyn Check> = Box::new(mock_check);
 
         // Setup mock action.
