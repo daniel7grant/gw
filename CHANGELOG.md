@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2024-02-09
+
 - Rewrite code to be more modular
 - Introduce tests to every part of the codebase
 - Add documentation to every module
