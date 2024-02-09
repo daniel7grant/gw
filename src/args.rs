@@ -26,7 +26,7 @@ impl FromStr for Trigger {
     }
 }
 
-/// Track a repository for changes and run scripts when it happens
+/// Watch a repository for changes and run scripts when it happens.
 #[derive(Debug, Options)]
 pub struct Args {
     /// The git repository to watch.
@@ -43,24 +43,28 @@ pub struct Args {
     #[options()]
     pub once: bool,
 
-    /// The trigger on which to run
+    /// The trigger on which to run.
     ///
     /// Can be either "push" to trigger on every change (default)
     /// or "tag:regex" to trigger on every tag matching a regex.
     #[options(default = "push")]
     pub trigger: Trigger,
 
-    /// Refreshes the repo with this delay
+    /// Refreshes the repo with this delay.
     ///
     /// Can be a number postfixed with s(econd), m(inutes), h(ours), d(ays)
     #[options(long = "every", default = "1m")]
     pub delay: DurationString,
 
-    /// Runs an HTTP server on the URL, which allows to trigger by calling it
+    /// Runs an HTTP server on the URL, which allows to trigger by calling it.
     #[options(no_short)]
     pub http: Option<String>,
 
-    /// Print this help
+    /// Print this help.
     #[options()]
     pub help: bool,
+}
+
+pub fn parse_args() -> Args {
+    Args::parse_args_default_or_exit()
 }

@@ -11,11 +11,20 @@ repository = "https://github.com/daniel7grant/gw"
 
 [dependencies]
 dirs = "5.0.1"
+duct_sh = "0.13.7"
 duration-string = "0.3.0"
 git2 = "0.18.1"
 gumdrop = "0.8.1"
-shlex = "1.3.0"
+log = "0.4.20"
+mockall = "0.12.1"
+simple_logger = "4.3.3"
+thiserror = "1.0.56"
 tiny_http = "0.12.0"
+
+[dev-dependencies]
+duct = "0.13.7"
+rand = "0.8.5"
+ureq = { version = "2.9.1", default-features = false }
 
 [profile.release]
 strip = true

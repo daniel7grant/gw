@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+
+jobs:
+  release:
+    name: Test on every commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v3
+      - name: Add toolchain for Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+      - name: Restore cached dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Test for linting issues
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+      - name: Setup git configuration
+        run: |
+          git config --global user.email "test@example.com"
+          git config --global user.name "Test Thomas"
+          git config --global init.defaultBranch master
+      - name: Run tests
+        run: cargo nextest run
