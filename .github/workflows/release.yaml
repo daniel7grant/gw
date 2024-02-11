@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "disable-for-now-v*"
+      - "v*"
 
 permissions:
   contents: write
