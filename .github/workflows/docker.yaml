@@ -46,6 +46,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=danielgrant/gw:latest
+          cache-to: type=inline
       - name: Build and push Alpine Docker image
         uses: docker/build-push-action@v5
         with:
@@ -53,9 +55,11 @@ jobs:
           push: true
           tags: ${{ steps.meta-alpine.outputs.tags }}
           labels: ${{ steps.meta-alpine.outputs.labels }}
+          cache-from: type=registry,ref=danielgrant/gw:alpine
+          cache-to: type=inline
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
           repository: danielgrant/gw
