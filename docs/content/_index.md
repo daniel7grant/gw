@@ -11,11 +11,18 @@ Watch local git repositories, keep in sync with remote and run commands.
 
 ## Motivation
 
-As continuos deployment is getting more of an industry standard, lot of teams are looking for a tool that allows them to only merge to master and have these changes immediately rolled out to live. For a long time, teams were forced to use proprietary hosting (e.g. Netlify or Vercel), build their own push-based CI pipelines (e.g. on GitHub Actions or GitLab Ci) or use heavyweight pull-based architecture (e.g. ArgoCD). It is especially difficult with deployments on-prem or behind a VPN.  `gw` is a lightweight tool that runs on the servers directly, pulls if there are changes in the remote repo and runs commands. You can run a build command, restart your deployment or anything you can imagine.
+`gw` is a lightweight binary that manages a simple pull-based continuous deployment for you. It watches a local git repository, fetches if the remote changes, and builds or deploys your code. Current CD solutions either lock you into proprietary software (e.g. Netlify or Vercel) or complicated to run and manage (e.g. ArgoCD). `gw` is a service that can run everywhere (even behind NAT or VPN), synchronizes code with your remote and deploys immediately, saving your developers time and energy.
+
+Features of `gw`:
+- **lightweight**: it is only a 1.4MB binary
+- **runs anywhere**: use it on baremetal, [systemd](./usage/systemd) or [docker](./usage/docker)
+- **open source**: written entirely in Rust, you can build it from source in a few minutes
+- **pull-based**: works on any network, even behind a NAT or VPN
+- **flexible**: build, deploy, restart or anything you can imagine
 
 ## Get started
 
-The easiest way is to download the zipped binary from [Github Releases](https://github.com/daniel7grant/gw/releases) or install with cargo:
+To get started download the `gw` binary from [releases](https://github.com/daniel7grant/gw/releases/latest) or install with [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html):
 
 ```sh
 cargo install gw-bin
@@ -31,3 +38,10 @@ To use `gw`, you have to point it to your local repository and it will pull chan
 gw /path/to/repo --script 'tool run build' --script 'deployment restart'
 ```
 
+But this is not all `gw` can do. With a little creativity you can create a lot of things, for example:
+
+- pull changes for [development](./guides/development) and get a notification;
+- rollout a [docker-compose](./guides/docker-compose) deployment continously;
+- build on all commits for a minimal [Netlify](./guides/netlify) alternative,
+
+...and many thing else. For a complete list, check out the [guides page](./guides).

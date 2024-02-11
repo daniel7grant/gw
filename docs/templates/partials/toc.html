@@ -10,12 +10,12 @@
     {% for section_path in sections.subsections -%}
     {% set subsection = get_section(path=section_path) %}
     <h5>
-        <a href="{{ subsection.path }}">{{ subsection.title }}</a>
+        <a href="{{ subsection.path }}" class="{% if subsection.path == current_path -%} active {%- endif %}">{{ subsection.title }}</a>
     </h5>
     <ul>
         {% for page in subsection.pages -%}
         <li>
-            <a href="{{ page.path }}">{{ page.title }}</a>
+            <a href="{{ page.path }}" class="{% if page.path == current_path -%} active {%- endif %}">{{ page.title }}</a>
         </li>
         {%- endfor %}
     </ul>

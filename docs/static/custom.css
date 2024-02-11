@@ -6,6 +6,22 @@ main a[href^="#"] {
     opacity: 30%;
 }
 
+a:not([href^='#']) {
+    border-bottom: 1px solid #c9c9c9;
+}
+
+aside a:not([href^='#']) {
+    border-bottom: none;
+}
+
+aside a:not([href^='#']).active {
+    border-bottom: 2px solid #c9c9c9;
+}
+
+a:not([href^='#']):hover {
+    border-bottom: 2px solid #c9c9c9;
+}
+
 @media screen and (min-width: 1200px) {
     aside {
         position: fixed;
