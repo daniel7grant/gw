@@ -9,6 +9,13 @@ jobs:
   release:
     name: Docker build if we are on a tag
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm/v7
+          - linux/arm64
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -50,7 +57,7 @@ jobs:
       - name: Build and push Alpine Docker image
         uses: docker/build-push-action@v5
         with:
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: ${{ matrix.platform }}
           file: ./Dockerfile.alpine
           push: true
           tags: ${{ steps.meta-alpine.outputs.tags }}
