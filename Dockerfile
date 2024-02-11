@@ -2,8 +2,6 @@ FROM rust:1.75 AS builder
 
 WORKDIR /app
 
-#RUN apk add musl-dev libressl-dev 
-
 COPY ./Cargo.lock ./Cargo.toml /app
 COPY ./src /app/src
 
