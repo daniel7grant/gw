@@ -1,7 +1,7 @@
 [package]
 name = "gw-bin"
 description = "Watch git repositories, pull changes and run commands on the new files"
-version = "0.2.0"
+version = "0.2.1"
 license = "MIT"
 edition = "2021"
 documentation = "https://github.com/daniel7grant/gw"

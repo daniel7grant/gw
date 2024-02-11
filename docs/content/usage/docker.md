@@ -14,11 +14,11 @@ The `gw` Docker images come in two flavours: the default image is based on Debia
 ```sh
 # Pull Debian-based
 docker pull gw
-docker pull gw:0.2.0
+docker pull gw:0.2.1
 
 # Pull Alpine-based
 docker pull gw:alpine
-docker pull gw:0.2.0-alpine
+docker pull gw:0.2.1-alpine
 ```
 
 ## Usage
@@ -61,7 +61,7 @@ The default image is useful for some cases, but most of the time we need more so
 ```dockerfile
 # Dockerfile
 # It is recommended to specify the version
-FROM gw:0.2.0
+FROM gw:0.2.1
 
 # Install dependencies
 RUN apt-get update && \
@@ -111,7 +111,7 @@ RUN apt-get update && \
     apt-get install -y ca-certificates openssl openssh-client
 
 # Copy from the `gw` image
-COPY --from gw:0.2.0 /usr/bin/gw /usr/bin/gw
+COPY --from gw:0.2.1 /usr/bin/gw /usr/bin/gw
 
 ENTRYPOINT ["/usr/bin/gw"]
 CMD ["/app", "-s", "npm run build"]
@@ -126,7 +126,7 @@ FROM example.org/registry/node-image:alpine
 RUN apk add ca-certificates openssh-client
 
 # Copy from the `gw` image
-COPY --from gw:0.2.0-alpine /usr/bin/gw /usr/bin/gw
+COPY --from gw:0.2.1-alpine /usr/bin/gw /usr/bin/gw
 
 ENTRYPOINT ["/usr/bin/gw"]
 CMD ["/app", "-s", "npm run build"]
