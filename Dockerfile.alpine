@@ -1,0 +1,23 @@
+FROM rust:1.75-alpine AS builder
+
+WORKDIR /app
+
+RUN apk add --no-cache \
+        libressl-dev \
+        musl-dev
+
+COPY ./Cargo.lock ./Cargo.toml /app
+COPY ./src /app/src
+
+RUN cargo build --release
+
+
+FROM alpine:3.19
+
+RUN apk add --no-cache \
+        ca-certificates \
+        openssh-client
+
+COPY --from=builder /app/target/release/gw /usr/bin/gw
+
+ENTRYPOINT ["/usr/bin/gw"]
