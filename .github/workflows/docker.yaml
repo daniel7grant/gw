@@ -10,6 +10,8 @@ jobs:
     name: Docker build if we are on a tag
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v3
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
