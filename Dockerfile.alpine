@@ -14,7 +14,9 @@ RUN cargo build --release
 
 FROM alpine:3.19
 
-RUN apk add --no-cache \
+RUN echo "[safe] \n\
+    directory = *" > /etc/gitconfig && \
+    apk add --no-cache \
         ca-certificates \
         openssh-client
 

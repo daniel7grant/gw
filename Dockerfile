@@ -12,7 +12,9 @@ FROM debian:12-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && \
+RUN echo "[safe] \n\
+    directory = *" > /etc/gitconfig && \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         openssl \
