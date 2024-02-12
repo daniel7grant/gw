@@ -13,12 +13,12 @@ The `gw` Docker images come in two flavours: the default image is based on Debia
 
 ```sh
 # Pull Debian-based
-docker pull gw
-docker pull gw:0.2.1
+docker pull danielgrant/gw
+docker pull danielgrant/gw:0.2.1
 
 # Pull Alpine-based
-docker pull gw:alpine
-docker pull gw:0.2.1-alpine
+docker pull danielgrant/gw:alpine
+docker pull danielgrant/gw:0.2.1-alpine
 ```
 
 ## Usage
@@ -26,13 +26,13 @@ docker pull gw:0.2.1-alpine
 If you just want to pull a repository or run simple scripts, you can run the container with [docker](https://docs.docker.com/engine/install/). You can mount a repository to a directory and watch it. For example:
 
 ```sh
-docker run -d --name gw -v /path/to/repo:/app gw /app
+docker run -d --name gw -v /path/to/repo:/app danielgrant/gw /app
 ```
 
 You can also run scripts, but these images are very small and only have a few programs set up:
 
 ```sh
-docker run -d --name gw -v /path/to/repo:/app gw /app -s "cp -r build/ html/"
+docker run -d --name gw -v /path/to/repo:/app danielgrant/gw /app -s "cp -r build/ html/"
 ```
 
 If you prefer to use `docker-compose`, you can copy this file to a `docker-compose.yaml` and run `docker compose up -d`:
@@ -44,7 +44,7 @@ version: "3"
 services:
   gw:
     container_name: gw
-    image: gw
+    image: danielgrant/gw
     command: /app
     volumes:
       - type: volume
@@ -61,7 +61,7 @@ The default image is useful for some cases, but most of the time we need more so
 ```dockerfile
 # Dockerfile
 # It is recommended to specify the version
-FROM gw:0.2.1
+FROM danielgrant/gw:0.2.1
 
 # Install dependencies
 RUN apt-get update && \
@@ -111,7 +111,7 @@ RUN apt-get update && \
     apt-get install -y ca-certificates openssl openssh-client
 
 # Copy from the `gw` image
-COPY --from gw:0.2.1 /usr/bin/gw /usr/bin/gw
+COPY --from danielgrant/gw:0.2.1 /usr/bin/gw /usr/bin/gw
 
 ENTRYPOINT ["/usr/bin/gw"]
 CMD ["/app", "-s", "npm run build"]
@@ -126,7 +126,7 @@ FROM example.org/registry/node-image:alpine
 RUN apk add ca-certificates openssh-client
 
 # Copy from the `gw` image
-COPY --from gw:0.2.1-alpine /usr/bin/gw /usr/bin/gw
+COPY --from danielgrant/gw:0.2.1-alpine /usr/bin/gw /usr/bin/gw
 
 ENTRYPOINT ["/usr/bin/gw"]
 CMD ["/app", "-s", "npm run build"]
