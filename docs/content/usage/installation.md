@@ -12,7 +12,7 @@ weight = 1
 The easiest way is to download the zipped binary from [Github Releases](https://github.com/daniel7grant/gw/releases) and install it to your path:
 
 ```sh
-curl -LO https://github.com/daniel7grant/gw/releases/download/v0.2.1/gw-bin_x86_64-unknown-linux-gnu.zip
+curl -LO https://github.com/daniel7grant/gw/releases/download/v0.2.2/gw-bin_x86_64-unknown-linux-gnu.zip
 unzip gw-bin_x86_64-unknown-linux-gnu.zip
 mv gw /usr/local/bin/gw
 rm gw-bin_x86_64-unknown-linux-gnu.zip

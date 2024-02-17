@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.2] - 2024-02-17
 
 - Add `-v` flag to increase verbosity, default log level changed to INFO
 - Add check to avoid pulling, when the repository is dirty
