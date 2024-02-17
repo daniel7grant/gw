@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+- Add `-v` flag to increase verbosity, default log level changed to INFO
+- Add check to avoid pulling, when the repository is dirty
+- Fix bug with tag fetching
+- Add more tracing to git repository
+- Add safe directory inside Docker image
+
+## [0.2.1] - 2024-02-12
+
 - Add Docker image
 - Add image building to GitHub Actions
 - Improve documentation
