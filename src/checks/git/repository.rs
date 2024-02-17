@@ -130,7 +130,8 @@ impl GitRepository {
             fetch_commit.id()
         );
 
-        trace!("Setting {} to id: {}.", name, fetch_commit.id().to_string()[0..7].to_string());
+        let fetch_short = &fetch_commit.id().to_string()[0..7];
+        trace!("Setting {} to id: {}.", name, fetch_short);
 
         let mut branch_ref = repo
             .find_reference(&branch_refname)
@@ -138,13 +139,13 @@ impl GitRepository {
         let fetch_id = fetch_commit.id();
         branch_ref
             .set_target(fetch_id, &msg)
-            .map_err(|_| GitError::FailedSettingHead(fetch_id.to_string()[0..7].to_string()))?;
+            .map_err(|_| GitError::FailedSettingHead(fetch_short.to_string()))?;
         repo.set_head(name)
-            .map_err(|_| GitError::FailedSettingHead(fetch_id.to_string()[0..7].to_string()))?;
+            .map_err(|_| GitError::FailedSettingHead(fetch_short.to_string()))?;
         repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
-            .map_err(|_| GitError::FailedSettingHead(fetch_id.to_string()[0..7].to_string()))?;
+            .map_err(|_| GitError::FailedSettingHead(fetch_short.to_string()))?;
 
-        trace!("Checked out {} on branch {}.", fetch_commit.id(), branch_name);
+        trace!("Checked out {} on branch {}.", fetch_short, branch_name);
 
         Ok(true)
     }

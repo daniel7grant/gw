@@ -81,7 +81,10 @@ impl Action for ScriptAction {
 
         match self.run_inner() {
             Ok(result) => {
-                debug!("Command success: {result}.");
+                debug!("Command success, output:");
+                result.lines().for_each(|line| {
+                    debug!("{line}");
+                });
                 Ok(())
             }
             Err(err) => {
