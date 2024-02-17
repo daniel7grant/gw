@@ -129,6 +129,19 @@ mod tests {
         Ok(())
     }
 
+    fn create_tag(path: &str, tag: &str) -> Result<(), Box<dyn Error>> {
+        cmd!("git", "tag", tag).dir(path).read()?;
+        cmd!("git", "push", "--tags").dir(path).read()?;
+
+        Ok(())
+    }
+
+    fn get_tags(path: &str) -> Result<String, Box<dyn Error>> {
+        let tags = cmd!("git", "tag", "-l").dir(path).read()?;
+
+        Ok(tags)
+    }
+
     fn cleanup_repository(local: &str) -> Result<(), Box<dyn Error>> {
         let remote = format!("{local}-remote");
         let other = format!("{local}-other");
@@ -271,6 +284,62 @@ mod tests {
 
         // The pushed file should be pulled
         assert!(Path::new(&format!("{local}/2")).exists());
+
+        cleanup_repository(&local)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_should_return_true_if_the_remote_changes_even_with_tags() -> Result<(), Box<dyn Error>> {
+        let id = get_random_id();
+        let local = format!("test_directories/{id}");
+
+        create_empty_repository(&local)?;
+
+        // Create another repository, push a new commit and add a tag
+        create_other_repository(&local)?;
+        create_tag(&format!("{local}-other"), "v0.1.0")?;
+
+        let mut check = GitCheck::open(&local)?;
+        let is_pulled = check.check_inner()?;
+        assert!(is_pulled);
+
+        // The pushed file should be pulled
+        assert!(Path::new(&format!("{local}/2")).exists());
+
+        // Tag should be downloaded
+        let tags = get_tags(&local)?;
+        assert_eq!(tags, "v0.1.0");
+
+        cleanup_repository(&local)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_should_fail_if_the_working_tree_is_dirty() -> Result<(), Box<dyn Error>> {
+        let id = get_random_id();
+        let local = format!("test_directories/{id}");
+
+        create_empty_repository(&local)?;
+
+        // Create another repository and push a new commit
+        create_other_repository(&local)?;
+
+        // Add uncommited modification to emulate a dirty working tree
+        fs::write(format!("{local}/1"), "22")?;
+
+        let mut check = GitCheck::open(&local)?;
+        let error = check.check_inner().err().unwrap();
+
+        assert!(
+            matches!(error, GitError::DirtyWorkingTree),
+            "{error:?} should be DirtyWorkingTree"
+        );
+
+        // The pushed file should be pulled
+        assert!(!Path::new(&format!("{local}/2")).exists());
 
         cleanup_repository(&local)?;
 

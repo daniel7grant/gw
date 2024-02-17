@@ -1,5 +1,8 @@
 use super::{credentials::CredentialHandler, GitError};
-use git2::{AnnotatedCommit, AutotagOption, Config, FetchOptions, RemoteCallbacks, Repository};
+use git2::{
+    AnnotatedCommit, AutotagOption, Config, FetchOptions, RemoteCallbacks, Repository,
+    StatusOptions,
+};
 use log::{debug, trace};
 
 pub struct GitRepository {
@@ -82,7 +85,7 @@ impl GitRepository {
             Ok(true)
         } else if analysis.is_up_to_date() {
             trace!("Fetched commit is up to date.");
-            Ok(true)
+            Ok(false)
         } else {
             if analysis.is_unborn() {
                 debug!("Fetched commit is not pointing to a valid branch (unborn), failing.");
@@ -100,7 +103,13 @@ impl GitRepository {
 
         trace!("Pulling {branch_name}.");
 
-        // TODO: Only fetch if the repository is not dirty
+        if !repo
+            .statuses(Some(StatusOptions::new().include_ignored(false)))
+            .map_err(|_| GitError::DirtyWorkingTree)?
+            .is_empty()
+        {
+            return Err(GitError::DirtyWorkingTree);
+        }
 
         let branch_refname = format!("refs/heads/{}", branch_name);
         let branch_ref = repo
