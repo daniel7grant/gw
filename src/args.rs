@@ -60,6 +60,10 @@ pub struct Args {
     #[options(no_short)]
     pub http: Option<String>,
 
+    /// Increase verbosity, can be set multiple times (-v debug, -vv tracing)
+    #[options(count)]
+    pub verbose: u8,
+
     /// Print this help.
     #[options()]
     pub help: bool,

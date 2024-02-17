@@ -28,7 +28,11 @@ fn main_inner() -> Result<(), MainError> {
     let args = parse_args();
 
     SimpleLogger::new()
-        .with_level(LevelFilter::Debug)
+        .with_level(match args.verbose {
+            0 => LevelFilter::Info,
+            1 => LevelFilter::Debug,
+            _ => LevelFilter::Trace,
+        })
         .env()
         .init()?;
 
