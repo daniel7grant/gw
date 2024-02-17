@@ -1,5 +1,6 @@
 use super::{credentials::CredentialHandler, GitError};
-use git2::{AnnotatedCommit, AutotagOption, FetchOptions, RemoteCallbacks, Repository};
+use git2::{AnnotatedCommit, AutotagOption, Config, FetchOptions, RemoteCallbacks, Repository};
+use log::{debug, trace};
 
 pub struct GitRepository {
     repo: Repository,
@@ -30,16 +31,23 @@ impl GitRepository {
             .find_remote(remote_name)
             .map_err(|_| GitError::NoRemoteForBranch(String::from(branch_name)))?;
 
+        trace!("Trying to fetch {branch_name} from {remote_name}.");
+
         let mut cb = RemoteCallbacks::new();
-        let git_config = git2::Config::open_default().unwrap();
+        let git_config = Config::open_default().map_err(|_| GitError::ConfigLoadingFailed)?;
         let mut ch = CredentialHandler::new(git_config);
         cb.credentials(move |url, username, allowed| {
-            ch.try_next_credential(url, username, allowed)
+            trace!("Trying credential {username:?} for {url}.");
+            let try_cred = ch.try_next_credential(url, username, allowed);
+            if try_cred.is_err() {
+                debug!("Cannot authenticate with {url}.");
+            }
+            try_cred
         });
 
         let mut opts = FetchOptions::new();
         opts.remote_callbacks(cb);
-        opts.download_tags(AutotagOption::All);
+        opts.download_tags(AutotagOption::Auto);
 
         remote
             .fetch(&[branch_name], Some(&mut opts), None)
@@ -52,20 +60,49 @@ impl GitRepository {
             .reference_to_annotated_commit(&fetch_head)
             .map_err(|_| GitError::FetchFailed)?;
 
+        trace!(
+            "Fetched successfully to {}.",
+            fetch_head
+                .peel_to_commit()
+                .map(|c| c.id().to_string()[0..7].to_string())
+                .unwrap_or("unknown reference".to_string())
+        );
+
         Ok(fetch_commit)
     }
 
     pub fn check_if_updatable(&self, fetch_commit: &AnnotatedCommit) -> Result<bool, GitError> {
         let Self { repo, .. } = self;
+        let head = repo.head().map_err(|_| GitError::NotOnABranch)?;
         let (analysis, _) = repo
             .merge_analysis(&[fetch_commit])
             .map_err(|_| GitError::MergeConflict)?;
 
         if analysis.is_fast_forward() {
+            trace!("Fetched commit can be fast forwarded.");
             Ok(true)
         } else if analysis.is_up_to_date() {
-            Ok(false)
+            trace!("Fetched commit is up to date.");
+            if let Some(head_id) = head.target() {
+                debug!(
+                    "Comparing fetch commit and HEAD ({} - {}).",
+                    &fetch_commit.id().to_string()[0..7],
+                    &head_id.to_string()[0..7]
+                );
+                if fetch_commit.id() != head_id {
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            } else {
+                Ok(false)
+            }
         } else {
+            if analysis.is_unborn() {
+                debug!("Fetched commit is not pointing to a valid branch (unborn), failing.");
+            } else if analysis.is_normal() {
+                debug!("Fetched commit is a merge conflict, failing.");
+            }
             Err(GitError::MergeConflict)
         }
     }
@@ -74,6 +111,8 @@ impl GitRepository {
         let Self { repo, .. } = self;
         let head = repo.head().map_err(|_| GitError::NotOnABranch)?;
         let branch_name = head.shorthand().ok_or(GitError::NotOnABranch)?;
+
+        trace!("Pulling {branch_name}.");
 
         // TODO: Only fetch if the repository is not dirty
 
@@ -86,10 +125,12 @@ impl GitRepository {
             .name()
             .ok_or_else(|| GitError::NoRemoteForBranch(String::from(branch_name)))?;
         let msg = format!(
-            "Fast-Forward: Setting {} to id: {}",
+            "Fast-Forward: Setting {} to id: {}.",
             name,
             fetch_commit.id()
         );
+
+        trace!("Setting {} to id: {}.", name, fetch_commit.id().to_string()[0..7].to_string());
 
         let mut branch_ref = repo
             .find_reference(&branch_refname)
@@ -97,11 +138,14 @@ impl GitRepository {
         let fetch_id = fetch_commit.id();
         branch_ref
             .set_target(fetch_id, &msg)
-            .map_err(|_| GitError::FailedSettingHead(fetch_id.to_string()))?;
+            .map_err(|_| GitError::FailedSettingHead(fetch_id.to_string()[0..7].to_string()))?;
         repo.set_head(name)
-            .map_err(|_| GitError::FailedSettingHead(fetch_id.to_string()))?;
+            .map_err(|_| GitError::FailedSettingHead(fetch_id.to_string()[0..7].to_string()))?;
         repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
-            .map_err(|_| GitError::FailedSettingHead(fetch_id.to_string()))?;
+            .map_err(|_| GitError::FailedSettingHead(fetch_id.to_string()[0..7].to_string()))?;
+
+        trace!("Checked out {} on branch {}.", fetch_commit.id(), branch_name);
+
         Ok(true)
     }
 }

@@ -29,6 +29,9 @@ pub enum GitError {
     /// over local changes, to not overwrite anything important.
     #[error("there are uncommited changes in the directory")]
     DirtyWorkingTree,
+    /// Cannot load the git config
+    #[error("cannot load git config")]
+    ConfigLoadingFailed,
     /// Cannot fetch the current branch. This is possibly a network failure.
     #[error("cannot fetch, might be a network error")]
     FetchFailed,
@@ -47,6 +50,7 @@ impl From<GitError> for CheckError {
             GitError::NotAGitRepository(_)
             | GitError::NotOnABranch
             | GitError::NoRemoteForBranch(_) => CheckError::Misconfigured(value.to_string()),
+            GitError::ConfigLoadingFailed => CheckError::PermissionDenied(value.to_string()),
             GitError::DirtyWorkingTree | GitError::MergeConflict => {
                 CheckError::Conflict(value.to_string())
             }
