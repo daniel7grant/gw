@@ -73,7 +73,6 @@ impl GitRepository {
 
     pub fn check_if_updatable(&self, fetch_commit: &AnnotatedCommit) -> Result<bool, GitError> {
         let Self { repo, .. } = self;
-        let head = repo.head().map_err(|_| GitError::NotOnABranch)?;
         let (analysis, _) = repo
             .merge_analysis(&[fetch_commit])
             .map_err(|_| GitError::MergeConflict)?;
@@ -83,20 +82,7 @@ impl GitRepository {
             Ok(true)
         } else if analysis.is_up_to_date() {
             trace!("Fetched commit is up to date.");
-            if let Some(head_id) = head.target() {
-                debug!(
-                    "Comparing fetch commit and HEAD ({} - {}).",
-                    &fetch_commit.id().to_string()[0..7],
-                    &head_id.to_string()[0..7]
-                );
-                if fetch_commit.id() != head_id {
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
-            } else {
-                Ok(false)
-            }
+            Ok(true)
         } else {
             if analysis.is_unborn() {
                 debug!("Fetched commit is not pointing to a valid branch (unborn), failing.");
@@ -145,7 +131,7 @@ impl GitRepository {
         repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
             .map_err(|_| GitError::FailedSettingHead(fetch_short.to_string()))?;
 
-        trace!("Checked out {} on branch {}.", fetch_short, branch_name);
+        debug!("Checked out {} on branch {}.", fetch_short, branch_name);
 
         Ok(true)
     }
