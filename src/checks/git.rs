@@ -1,6 +1,6 @@
 use self::repository::GitRepository;
 use super::{Check, CheckError};
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 use thiserror::Error;
 
 mod credentials;
@@ -68,7 +68,7 @@ impl GitCheck {
         Ok(GitCheck(repo))
     }
 
-    fn check_inner(&mut self) -> Result<bool, GitError> {
+    fn check_inner(&mut self, _context: &mut HashMap<String, String>) -> Result<bool, GitError> {
         let GitCheck(repo) = self;
         let fetch_commit = repo.fetch()?;
         if repo.check_if_updatable(&fetch_commit)? && repo.pull(&fetch_commit)? {
@@ -82,8 +82,8 @@ impl GitCheck {
 impl Check for GitCheck {
     /// Fetch and pull changes from the remote repository on the current branch.
     /// It returns true if the pull was successful and there are new changes.
-    fn check(&mut self) -> Result<bool, CheckError> {
-        let update_successful = self.check_inner()?;
+    fn check(&mut self, context: &mut HashMap<String, String>) -> Result<bool, CheckError> {
+        let update_successful = self.check_inner(context)?;
 
         Ok(update_successful)
     }
@@ -219,7 +219,8 @@ mod tests {
         create_failing_repository(&local, false)?;
 
         let mut check: GitCheck = GitCheck::open(&local)?;
-        let error = check.check_inner().err().unwrap();
+        let mut context: HashMap<String, String> = HashMap::new();
+        let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
             matches!(error, GitError::NotOnABranch),
@@ -240,7 +241,8 @@ mod tests {
         create_failing_repository(&local, true)?;
 
         let mut check: GitCheck = GitCheck::open(&local)?;
-        let error = check.check_inner().err().unwrap();
+        let mut context: HashMap<String, String> = HashMap::new();
+        let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
             matches!(error, GitError::NoRemoteForBranch(_)),
@@ -260,7 +262,8 @@ mod tests {
         create_empty_repository(&local)?;
 
         let mut check = GitCheck::open(&local)?;
-        let is_pulled = check.check_inner()?;
+        let mut context: HashMap<String, String> = HashMap::new();
+        let is_pulled = check.check_inner(&mut context)?;
         assert!(!is_pulled);
 
         cleanup_repository(&local)?;
@@ -279,7 +282,8 @@ mod tests {
         create_other_repository(&local)?;
 
         let mut check = GitCheck::open(&local)?;
-        let is_pulled = check.check_inner()?;
+        let mut context: HashMap<String, String> = HashMap::new();
+        let is_pulled = check.check_inner(&mut context)?;
         assert!(is_pulled);
 
         // The pushed file should be pulled
@@ -302,7 +306,8 @@ mod tests {
         create_tag(&format!("{local}-other"), "v0.1.0")?;
 
         let mut check = GitCheck::open(&local)?;
-        let is_pulled = check.check_inner()?;
+        let mut context: HashMap<String, String> = HashMap::new();
+        let is_pulled = check.check_inner(&mut context)?;
         assert!(is_pulled);
 
         // The pushed file should be pulled
@@ -331,7 +336,8 @@ mod tests {
         fs::write(format!("{local}/1"), "22")?;
 
         let mut check = GitCheck::open(&local)?;
-        let error = check.check_inner().err().unwrap();
+        let mut context: HashMap<String, String> = HashMap::new();
+        let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
             matches!(error, GitError::DirtyWorkingTree),
@@ -360,7 +366,8 @@ mod tests {
         create_merge_conflict(&local)?;
 
         let mut check = GitCheck::open(&local)?;
-        let error = check.check_inner().err().unwrap();
+        let mut context: HashMap<String, String> = HashMap::new();
+        let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
             matches!(error, GitError::MergeConflict),
@@ -388,7 +395,8 @@ mod tests {
         fs::set_permissions(&local, perms)?;
 
         let mut check: GitCheck = GitCheck::open(&local)?;
-        let error = check.check_inner().err().unwrap();
+        let mut context: HashMap<String, String> = HashMap::new();
+        let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
             matches!(error, GitError::FailedSettingHead(_)),

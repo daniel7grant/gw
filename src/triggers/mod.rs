@@ -1,5 +1,5 @@
 use mockall::automock;
-use std::sync::mpsc::Sender;
+use std::{collections::HashMap, sync::mpsc::Sender};
 use thiserror::Error;
 
 /// A trigger that runs on an HTTP request.
@@ -17,7 +17,7 @@ pub enum TriggerError {
     Misconfigured(String),
     /// Cannot send trigger with Sender. This usually because the receiver is dropped.
     #[error("cannot trigger changes, receiver hang up")]
-    ReceiverHangup(#[from] std::sync::mpsc::SendError<Option<()>>),
+    ReceiverHangup(#[from] std::sync::mpsc::SendError<Option<HashMap<String, String>>>),
     /// Running the trigger failed.
     #[error("{0}")]
     FailedTrigger(String),
@@ -32,5 +32,5 @@ pub enum TriggerError {
 #[automock]
 pub trait Trigger: Sync + Send {
     /// Start the trigger process.
-    fn listen(&self, tx: Sender<Option<()>>) -> Result<(), TriggerError>;
+    fn listen(&self, tx: Sender<Option<HashMap<String, String>>>) -> Result<(), TriggerError>;
 }

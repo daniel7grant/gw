@@ -1,6 +1,6 @@
 use super::{Trigger, TriggerError};
-use std::sync::mpsc::Sender;
 use log::{debug, info};
+use std::{collections::HashMap, sync::mpsc::Sender};
 use thiserror::Error;
 use tiny_http::{Response, Server};
 
@@ -22,7 +22,7 @@ pub enum HttpError {
     CantStartServer(String),
     /// Cannot send trigger with Sender. This usually because the receiver is dropped.
     #[error("cannot trigger changes, receiver hang up")]
-    ReceiverHangup(#[from] std::sync::mpsc::SendError<Option<()>>),
+    ReceiverHangup(#[from] std::sync::mpsc::SendError<Option<HashMap<String, String>>>),
     /// Failed to send response.
     #[error("failed to send response")]
     FailedResponse(#[from] std::io::Error),
@@ -45,14 +45,15 @@ impl HttpTrigger {
         Self { http }
     }
 
-    fn listen_inner(&self, tx: Sender<Option<()>>) -> Result<(), HttpError> {
+    fn listen_inner(&self, tx: Sender<Option<HashMap<String, String>>>) -> Result<(), HttpError> {
         let listener =
             Server::http(&self.http).map_err(|_| HttpError::CantStartServer(self.http.clone()))?;
         info!("Listening on {}...", self.http);
         for request in listener.incoming_requests() {
             debug!("Received request on {} {}", request.method(), request.url());
 
-            tx.send(Some(())).map_err(HttpError::from)?;
+            let context: HashMap<String, String> = HashMap::new();
+            tx.send(Some(context)).map_err(HttpError::from)?;
 
             request.respond(Response::from_string("OK"))?;
         }
@@ -64,7 +65,7 @@ impl Trigger for HttpTrigger {
     /// Starts a minimal HTTP 1.1 server, that triggers on every request.
     ///
     /// Every method and every URL triggers and returns 200 status code with plaintext "OK".
-    fn listen(&self, tx: Sender<Option<()>>) -> Result<(), TriggerError> {
+    fn listen(&self, tx: Sender<Option<HashMap<String, String>>>) -> Result<(), TriggerError> {
         self.listen_inner(tx)?;
 
         Ok(())
@@ -90,7 +91,7 @@ mod tests {
     #[test]
     fn it_should_return_ok_on_every_request() -> Result<(), Box<dyn Error>> {
         let trigger = HttpTrigger::new(String::from("0.0.0.0:10101"));
-        let (tx, rx) = mpsc::channel::<Option<()>>();
+        let (tx, rx) = mpsc::channel::<Option<HashMap<String, String>>>();
 
         thread::spawn(move || {
             let _ = trigger.listen_inner(tx);
@@ -108,10 +109,10 @@ mod tests {
         assert_eq!("OK", result.into_string()?);
 
         let msg = rx.recv()?;
-        assert_eq!(Some(()), msg);
+        assert_eq!(Some(HashMap::new()), msg);
 
         let msg = rx.recv()?;
-        assert_eq!(Some(()), msg);
+        assert_eq!(Some(HashMap::new()), msg);
 
         Ok(())
     }
@@ -120,7 +121,7 @@ mod tests {
     fn it_should_fail_if_http_url_invalid() {
         let trigger = HttpTrigger::new(String::from("aaaaa"));
 
-        let (tx, _rx) = mpsc::channel::<Option<()>>();
+        let (tx, _rx) = mpsc::channel::<Option<HashMap<String, String>>>();
 
         let result = trigger.listen_inner(tx);
         assert!(
@@ -132,7 +133,7 @@ mod tests {
     #[test]
     fn it_should_fail_if_sending_fails() -> Result<(), Box<dyn Error>> {
         let trigger = HttpTrigger::new(String::from("0.0.0.0:10102"));
-        let (tx, rx) = mpsc::channel::<Option<()>>();
+        let (tx, rx) = mpsc::channel::<Option<HashMap<String, String>>>();
 
         thread::spawn(move || {
             // Sleep for the HTTP server to start up.

@@ -1,6 +1,7 @@
 use super::{Action, ActionError};
 use duct_sh::sh_dangerous;
 use log::{debug, error};
+use std::collections::HashMap;
 use thiserror::Error;
 
 /// An action to run a custom shell script.
@@ -45,7 +46,7 @@ impl ScriptAction {
         ScriptAction { directory, command }
     }
 
-    fn run_inner(&self) -> Result<String, ScriptError> {
+    fn run_inner(&self, _context: &HashMap<String, String>) -> Result<String, ScriptError> {
         // We can run `sh_dangerous`, because it is on the user's computer.
         let output = sh_dangerous(&self.command)
             .stderr_to_stdout()
@@ -73,13 +74,13 @@ impl Action for ScriptAction {
     /// Run the script in a subshell (`/bin/sh` on *nix, `cmd.exe` on Windows).
     /// If the script fails to start, return a non-zero error code or prints non-utf8
     /// characters, this function will result in an error.
-    fn run(&self) -> Result<(), ActionError> {
+    fn run(&self, context: &HashMap<String, String>) -> Result<(), ActionError> {
         debug!(
             "Running script: {} in directory {}.",
             self.command, self.directory
         );
 
-        match self.run_inner() {
+        match self.run_inner(context) {
             Ok(result) => {
                 debug!("Command success, output:");
                 result.lines().for_each(|line| {
@@ -111,7 +112,8 @@ mod tests {
     fn it_should_run_the_script() -> Result<(), ScriptError> {
         let action = ScriptAction::new(String::from("."), String::from("echo test"));
 
-        let output = action.run_inner()?;
+        let context: HashMap<String, String> = HashMap::new();
+        let output = action.run_inner(&context)?;
         assert_eq!("test", output);
 
         Ok(())
@@ -121,7 +123,8 @@ mod tests {
     fn it_should_catch_error_output() -> Result<(), ScriptError> {
         let action = ScriptAction::new(String::from("."), String::from("echo err >&2"));
 
-        let output = action.run_inner()?;
+        let context: HashMap<String, String> = HashMap::new();
+        let output = action.run_inner(&context)?;
         assert_eq!("err", output);
 
         Ok(())
@@ -131,7 +134,8 @@ mod tests {
     fn it_should_fail_if_the_script_fails() -> Result<(), ScriptError> {
         let action = ScriptAction::new(String::from("."), String::from("false"));
 
-        let result = action.run_inner();
+        let context: HashMap<String, String> = HashMap::new();
+        let result = action.run_inner(&context);
         assert!(
             matches!(result, Err(ScriptError::NonZeroExitcode(1, _))),
             "{result:?} should match non zero exit code"
@@ -145,7 +149,8 @@ mod tests {
         let action =
             ScriptAction::new(String::from("."), String::from("/bin/echo -e '\\xc3\\x28'"));
 
-        let result = action.run_inner();
+        let context: HashMap<String, String> = HashMap::new();
+        let result = action.run_inner(&context);
         assert!(
             matches!(result, Err(ScriptError::NonUtf8Return)),
             "{result:?} should match non utf8 return"
