@@ -4,6 +4,8 @@ use log::{debug, error};
 use std::collections::HashMap;
 use thiserror::Error;
 
+const ACTION_NAME: &str = "SCRIPT";
+
 /// An action to run a custom shell script.
 ///
 /// The passed script is running in a subshell (`/bin/sh` on *nix, `cmd.exe` on Windows).
@@ -46,9 +48,21 @@ impl ScriptAction {
         ScriptAction { directory, command }
     }
 
-    fn run_inner(&self, _context: &HashMap<String, String>) -> Result<String, ScriptError> {
+    fn run_inner(&self, context: &HashMap<String, String>) -> Result<String, ScriptError> {
+        let mut env: HashMap<String, String> = HashMap::from([
+            ("CI".to_string(), "true".to_string()),
+            ("GW_ACTION_NAME".to_string(), ACTION_NAME.to_string()),
+            ("GW_DIRECTORY".to_string(), self.directory.clone()),
+        ]);
+        env.extend(
+            context
+                .iter()
+                .map(|(k, v)| (format!("GW_{k}"), v.to_owned())),
+        );
+
         // We can run `sh_dangerous`, because it is on the user's computer.
         let output = sh_dangerous(&self.command)
+            .full_env(env)
             .stderr_to_stdout()
             .stdout_capture()
             .dir(&self.directory)
@@ -115,6 +129,25 @@ mod tests {
         let context: HashMap<String, String> = HashMap::new();
         let output = action.run_inner(&context)?;
         assert_eq!("test", output);
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_should_set_the_env_vars() -> Result<(), ScriptError> {
+        let action = ScriptAction::new(String::from("."), String::from("printenv"));
+
+        let context: HashMap<String, String> = HashMap::from([
+            ("TRIGGER_NAME".to_string(), "TEST-TRIGGER".to_string()),
+            ("CHECK_NAME".to_string(), "TEST-CHECK".to_string()),
+        ]);
+        let output = action.run_inner(&context)?;
+        let lines: Vec<&str> = output.lines().collect();
+        assert!(lines.contains(&"CI=true"));
+        assert!(lines.contains(&"GW_TRIGGER_NAME=TEST-TRIGGER"));
+        assert!(lines.contains(&"GW_CHECK_NAME=TEST-CHECK"));
+        assert!(lines.contains(&"GW_ACTION_NAME=SCRIPT"));
+        assert!(lines.contains(&"GW_DIRECTORY=."));
 
         Ok(())
     }
