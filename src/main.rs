@@ -7,7 +7,7 @@ use gw_bin::{
 };
 use log::{debug, error, warn, LevelFilter, SetLoggerError};
 use simple_logger::SimpleLogger;
-use std::{process, time::Duration};
+use std::{fs, process, time::Duration};
 use thiserror::Error;
 
 mod args;
@@ -36,6 +36,15 @@ fn main_inner() -> Result<(), MainError> {
         .env()
         .init()?;
 
+    // Check if directory exists and convert to full path
+    let directory_relative = args.directory.ok_or(MainError::MissingDirectory)?;
+    let directory_path =
+        fs::canonicalize(directory_relative).map_err(|_| MainError::MissingDirectory)?;
+    let directory = directory_path
+        .to_str()
+        .ok_or(MainError::MissingDirectory)?
+        .to_string();
+
     // Setup triggers.
     let mut triggers: Vec<Box<dyn Trigger>> = vec![];
     if args.once {
@@ -54,7 +63,6 @@ fn main_inner() -> Result<(), MainError> {
     }
 
     // Setup check.
-    let directory = args.directory.ok_or(MainError::MissingDirectory)?;
     debug!("Setting up directory {directory} for GitCheck.");
     let mut check: Box<dyn Check> = Box::new(GitCheck::open(&directory)?);
 
