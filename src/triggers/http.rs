@@ -56,8 +56,8 @@ impl HttpTrigger {
 
             let context: HashMap<String, String> = [
                 ("TRIGGER_NAME", TRIGGER_NAME),
-                ("TRIGGER_HTTP_METHOD", request.method().as_str()),
-                ("TRIGGER_HTTP_URL", request.url()),
+                ("HTTP_METHOD", request.method().as_str()),
+                ("HTTP_URL", request.url()),
             ]
             .into_iter()
             .map(|(s1, s2)| (s1.to_string(), s2.to_string()))
@@ -120,14 +120,14 @@ mod tests {
         let msg = rx.recv()?;
         let context = msg.unwrap();
         assert_eq!(TRIGGER_NAME, context.get("TRIGGER_NAME").unwrap());
-        assert_eq!("GET", context.get("TRIGGER_HTTP_METHOD").unwrap());
-        assert_eq!("/", context.get("TRIGGER_HTTP_URL").unwrap());
+        assert_eq!("GET", context.get("HTTP_METHOD").unwrap());
+        assert_eq!("/", context.get("HTTP_URL").unwrap());
 
         let msg = rx.recv()?;
         let context = msg.unwrap();
         assert_eq!(TRIGGER_NAME, context.get("TRIGGER_NAME").unwrap());
-        assert_eq!("POST", context.get("TRIGGER_HTTP_METHOD").unwrap());
-        assert_eq!("/trigger", context.get("TRIGGER_HTTP_URL").unwrap());
+        assert_eq!("POST", context.get("HTTP_METHOD").unwrap());
+        assert_eq!("/trigger", context.get("HTTP_URL").unwrap());
 
         Ok(())
     }
