@@ -4,6 +4,8 @@ use std::{collections::HashMap, sync::mpsc::Sender};
 use thiserror::Error;
 use tiny_http::{Response, Server};
 
+const TRIGGER_NAME: &str = "HTTP";
+
 /// A trigger that runs on an HTTP request.
 ///
 /// This could be used to trigger checks from git remotes (e.g. GitHub, GitLab) with webhooks.
@@ -52,7 +54,14 @@ impl HttpTrigger {
         for request in listener.incoming_requests() {
             debug!("Received request on {} {}", request.method(), request.url());
 
-            let context: HashMap<String, String> = HashMap::new();
+            let context: HashMap<String, String> = [
+                ("TRIGGER_NAME", TRIGGER_NAME),
+                ("TRIGGER_HTTP_METHOD", request.method().as_str()),
+                ("TRIGGER_HTTP_URL", request.url()),
+            ]
+            .into_iter()
+            .map(|(s1, s2)| (s1.to_string(), s2.to_string()))
+            .collect();
             tx.send(Some(context)).map_err(HttpError::from)?;
 
             request.respond(Response::from_string("OK"))?;
@@ -109,10 +118,16 @@ mod tests {
         assert_eq!("OK", result.into_string()?);
 
         let msg = rx.recv()?;
-        assert_eq!(Some(HashMap::new()), msg);
+        let context = msg.unwrap();
+        assert_eq!(TRIGGER_NAME, context.get("TRIGGER_NAME").unwrap());
+        assert_eq!("GET", context.get("TRIGGER_HTTP_METHOD").unwrap());
+        assert_eq!("/", context.get("TRIGGER_HTTP_URL").unwrap());
 
         let msg = rx.recv()?;
-        assert_eq!(Some(HashMap::new()), msg);
+        let context = msg.unwrap();
+        assert_eq!(TRIGGER_NAME, context.get("TRIGGER_NAME").unwrap());
+        assert_eq!("POST", context.get("TRIGGER_HTTP_METHOD").unwrap());
+        assert_eq!("/trigger", context.get("TRIGGER_HTTP_URL").unwrap());
 
         Ok(())
     }

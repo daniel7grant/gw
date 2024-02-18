@@ -9,6 +9,8 @@ use std::{
 };
 use thiserror::Error;
 
+const TRIGGER_NAME: &str = "SCHEDULE";
+
 /// A trigger that runs the checks periodically.
 ///
 /// This is running in an infinite loop, triggering every time.
@@ -60,7 +62,14 @@ impl ScheduleTrigger {
         final_timeout: Option<Instant>,
     ) -> Result<bool, ScheduleError> {
         let next_check = Instant::now() + self.duration;
-        let context: HashMap<String, String> = HashMap::new();
+
+        let context: HashMap<String, String> = HashMap::from([
+            ("TRIGGER_NAME".to_string(), TRIGGER_NAME.to_string()),
+            (
+                "TRIGGER_SCHEDULE_DURATION".to_string(),
+                DurationString::from(self.duration).to_string(),
+            ),
+        ]);
         tx.send(Some(context))?;
 
         if let Some(final_timeout) = final_timeout {
@@ -135,10 +144,15 @@ mod tests {
             assert!(should_continue);
 
             // It should be close to the timings
-            let _ = rx.recv().unwrap();
+            let msg = rx.recv().unwrap();
             let diff = start.elapsed();
             assert!(diff >= Duration::from_millis(95));
             assert!(diff <= Duration::from_millis(105));
+
+            // It should contain the hashmap
+            let context = msg.unwrap();
+            assert_eq!(TRIGGER_NAME, context.get("TRIGGER_NAME").unwrap());
+            assert_eq!("100ms", context.get("TRIGGER_SCHEDULE_DURATION").unwrap());
         }
 
         Ok(())
