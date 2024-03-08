@@ -1,10 +1,11 @@
 use crate::{
     actions::Action,
     checks::{Check, CheckError},
+    context::Context,
     triggers::{Trigger, TriggerError},
 };
 use log::{debug, error};
-use std::{collections::HashMap, sync::mpsc, thread};
+use std::{sync::mpsc, thread};
 use thiserror::Error;
 
 /// A custom error implementation for the start function
@@ -24,7 +25,7 @@ pub fn start(
     check: &mut Box<dyn Check>,
     actions: &[Box<dyn Action>],
 ) -> Result<(), StartError> {
-    let (tx, rx) = mpsc::channel::<Option<HashMap<String, String>>>();
+    let (tx, rx) = mpsc::channel::<Option<Context>>();
 
     if triggers.is_empty() {
         return Err(StartError::NoTriggers);
@@ -69,6 +70,7 @@ mod tests {
         checks::{Check, MockCheck},
         triggers::{MockTrigger, Trigger},
     };
+    use std::collections::HashMap;
 
     #[test]
     fn it_should_call_once() {

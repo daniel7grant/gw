@@ -1,4 +1,5 @@
 use super::{Trigger, TriggerError};
+use crate::context::Context;
 use log::{debug, info};
 use std::{collections::HashMap, sync::mpsc::Sender};
 use thiserror::Error;
@@ -24,7 +25,7 @@ pub enum HttpError {
     CantStartServer(String),
     /// Cannot send trigger with Sender. This usually because the receiver is dropped.
     #[error("cannot trigger changes, receiver hang up")]
-    ReceiverHangup(#[from] std::sync::mpsc::SendError<Option<HashMap<String, String>>>),
+    ReceiverHangup(#[from] std::sync::mpsc::SendError<Option<Context>>),
     /// Failed to send response.
     #[error("failed to send response")]
     FailedResponse(#[from] std::io::Error),
@@ -47,21 +48,18 @@ impl HttpTrigger {
         Self { http }
     }
 
-    fn listen_inner(&self, tx: Sender<Option<HashMap<String, String>>>) -> Result<(), HttpError> {
+    fn listen_inner(&self, tx: Sender<Option<Context>>) -> Result<(), HttpError> {
         let listener =
             Server::http(&self.http).map_err(|_| HttpError::CantStartServer(self.http.clone()))?;
         info!("Listening on {}...", self.http);
         for request in listener.incoming_requests() {
             debug!("Received request on {} {}", request.method(), request.url());
 
-            let context: HashMap<String, String> = [
-                ("TRIGGER_NAME", TRIGGER_NAME),
-                ("HTTP_METHOD", request.method().as_str()),
-                ("HTTP_URL", request.url()),
-            ]
-            .into_iter()
-            .map(|(s1, s2)| (s1.to_string(), s2.to_string()))
-            .collect();
+            let context: Context = HashMap::from([
+                ("TRIGGER_NAME", TRIGGER_NAME.to_string()),
+                ("HTTP_METHOD", request.method().to_string()),
+                ("HTTP_URL", request.url().to_string()),
+            ]);
             tx.send(Some(context)).map_err(HttpError::from)?;
 
             request.respond(Response::from_string("OK"))?;
@@ -74,7 +72,7 @@ impl Trigger for HttpTrigger {
     /// Starts a minimal HTTP 1.1 server, that triggers on every request.
     ///
     /// Every method and every URL triggers and returns 200 status code with plaintext "OK".
-    fn listen(&self, tx: Sender<Option<HashMap<String, String>>>) -> Result<(), TriggerError> {
+    fn listen(&self, tx: Sender<Option<Context>>) -> Result<(), TriggerError> {
         self.listen_inner(tx)?;
 
         Ok(())
@@ -100,7 +98,7 @@ mod tests {
     #[test]
     fn it_should_return_ok_on_every_request() -> Result<(), Box<dyn Error>> {
         let trigger = HttpTrigger::new(String::from("0.0.0.0:10101"));
-        let (tx, rx) = mpsc::channel::<Option<HashMap<String, String>>>();
+        let (tx, rx) = mpsc::channel::<Option<Context>>();
 
         thread::spawn(move || {
             let _ = trigger.listen_inner(tx);
@@ -136,7 +134,7 @@ mod tests {
     fn it_should_fail_if_http_url_invalid() {
         let trigger = HttpTrigger::new(String::from("aaaaa"));
 
-        let (tx, _rx) = mpsc::channel::<Option<HashMap<String, String>>>();
+        let (tx, _rx) = mpsc::channel::<Option<Context>>();
 
         let result = trigger.listen_inner(tx);
         assert!(
@@ -148,7 +146,7 @@ mod tests {
     #[test]
     fn it_should_fail_if_sending_fails() -> Result<(), Box<dyn Error>> {
         let trigger = HttpTrigger::new(String::from("0.0.0.0:10102"));
-        let (tx, rx) = mpsc::channel::<Option<HashMap<String, String>>>();
+        let (tx, rx) = mpsc::channel::<Option<Context>>();
 
         thread::spawn(move || {
             // Sleep for the HTTP server to start up.

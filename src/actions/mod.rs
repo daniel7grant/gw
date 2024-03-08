@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use crate::context::Context;
 use mockall::automock;
 use thiserror::Error;
 
@@ -28,5 +27,5 @@ pub enum ActionError {
 #[automock]
 pub trait Action {
     /// Initiate the action
-    fn run(&self, context: &HashMap<String, String>) -> Result<(), ActionError>;
+    fn run(&self, context: &Context) -> Result<(), ActionError>;
 }

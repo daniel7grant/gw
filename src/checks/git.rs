@@ -1,6 +1,7 @@
 use self::repository::{shorthash, GitRepository, GitRepositoryInformation};
 use super::{Check, CheckError};
-use std::{collections::HashMap, fmt::Debug};
+use crate::context::Context;
+use std::fmt::Debug;
 use thiserror::Error;
 
 mod credentials;
@@ -74,12 +75,12 @@ impl GitCheck {
         Ok(GitCheck(repo))
     }
 
-    fn check_inner(&mut self, context: &mut HashMap<String, String>) -> Result<bool, GitError> {
+    fn check_inner(&mut self, context: &mut Context) -> Result<bool, GitError> {
         let GitCheck(repo) = self;
 
         // Load context data from repository information
         let information = repo.get_repository_information()?;
-        context.insert("CHECK_NAME".to_string(), CHECK_NAME.to_string());
+        context.insert("CHECK_NAME", CHECK_NAME.to_string());
         match information {
             GitRepositoryInformation::Branch {
                 ref_type,
@@ -90,15 +91,15 @@ impl GitCheck {
                 remote_name,
                 remote_url,
             } => {
-                context.insert("GIT_REF_TYPE".to_string(), ref_type);
-                context.insert("GIT_REF_NAME".to_string(), ref_name);
-                context.insert("GIT_BRANCH_NAME".to_string(), branch_name);
-                context.insert("GIT_BEFORE_COMMIT_SHA".to_string(), commit_sha.clone());
-                context.insert("GIT_BEFORE_COMMIT_SHORT_SHA".to_string(), commit_short_sha.clone());
-                context.insert("GIT_COMMIT_SHA".to_string(), commit_sha);
-                context.insert("GIT_COMMIT_SHORT_SHA".to_string(), commit_short_sha);
-                context.insert("GIT_REMOTE_NAME".to_string(), remote_name);
-                context.insert("GIT_REMOTE_URL".to_string(), remote_url);
+                context.insert("GIT_REF_TYPE", ref_type);
+                context.insert("GIT_REF_NAME", ref_name);
+                context.insert("GIT_BRANCH_NAME", branch_name);
+                context.insert("GIT_BEFORE_COMMIT_SHA", commit_sha.clone());
+                context.insert("GIT_BEFORE_COMMIT_SHORT_SHA", commit_short_sha.clone());
+                context.insert("GIT_COMMIT_SHA", commit_sha);
+                context.insert("GIT_COMMIT_SHORT_SHA", commit_short_sha);
+                context.insert("GIT_REMOTE_NAME", remote_name);
+                context.insert("GIT_REMOTE_URL", remote_url);
             }
             GitRepositoryInformation::Reference {
                 ref_type,
@@ -106,19 +107,19 @@ impl GitCheck {
                 commit_sha,
                 commit_short_sha,
             } => {
-                context.insert("GIT_REF_TYPE".to_string(), ref_type);
-                context.insert("GIT_REF_NAME".to_string(), ref_name);
-                context.insert("GIT_BEFORE_COMMIT_SHA".to_string(), commit_sha);
-                context.insert("GIT_BEFORE_COMMIT_SHORT_SHA".to_string(), commit_short_sha);
+                context.insert("GIT_REF_TYPE", ref_type);
+                context.insert("GIT_REF_NAME", ref_name);
+                context.insert("GIT_BEFORE_COMMIT_SHA", commit_sha);
+                context.insert("GIT_BEFORE_COMMIT_SHORT_SHA", commit_short_sha);
             }
         }
 
         // Pull repository contents and report
         let fetch_commit = repo.fetch()?;
         if repo.check_if_updatable(&fetch_commit)? && repo.pull(&fetch_commit)? {
-            context.insert("GIT_COMMIT_SHA".to_string(), fetch_commit.id().to_string());
+            context.insert("GIT_COMMIT_SHA", fetch_commit.id().to_string());
             context.insert(
-                "GIT_COMMIT_SHORT_SHA".to_string(),
+                "GIT_COMMIT_SHORT_SHA",
                 shorthash(&fetch_commit.id().to_string()),
             );
             Ok(true)
@@ -131,7 +132,7 @@ impl GitCheck {
 impl Check for GitCheck {
     /// Fetch and pull changes from the remote repository on the current branch.
     /// It returns true if the pull was successful and there are new changes.
-    fn check(&mut self, context: &mut HashMap<String, String>) -> Result<bool, CheckError> {
+    fn check(&mut self, context: &mut Context) -> Result<bool, CheckError> {
         let update_successful = self.check_inner(context)?;
 
         Ok(update_successful)
@@ -143,7 +144,7 @@ mod tests {
     use super::*;
     use duct::cmd;
     use rand::distributions::{Alphanumeric, DistString};
-    use std::{error::Error, fs, path::Path};
+    use std::{collections::HashMap, error::Error, fs, path::Path};
 
     fn get_random_id() -> String {
         Alphanumeric.sample_string(&mut rand::thread_rng(), 16)
@@ -274,7 +275,7 @@ mod tests {
         create_failing_repository(&local, false)?;
 
         let mut check: GitCheck = GitCheck::open(&local)?;
-        let mut context: HashMap<String, String> = HashMap::new();
+        let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
@@ -296,7 +297,7 @@ mod tests {
         create_failing_repository(&local, true)?;
 
         let mut check: GitCheck = GitCheck::open(&local)?;
-        let mut context: HashMap<String, String> = HashMap::new();
+        let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
@@ -317,7 +318,7 @@ mod tests {
         create_empty_repository(&local)?;
 
         let mut check = GitCheck::open(&local)?;
-        let mut context: HashMap<String, String> = HashMap::new();
+        let mut context: Context = HashMap::new();
         let is_pulled = check.check_inner(&mut context)?;
         assert!(!is_pulled);
 
@@ -353,7 +354,7 @@ mod tests {
 
         let before_commit_sha = get_last_commit(&local)?;
         let mut check = GitCheck::open(&local)?;
-        let mut context: HashMap<String, String> = HashMap::new();
+        let mut context: Context = HashMap::new();
         let is_pulled = check.check_inner(&mut context)?;
         assert!(is_pulled);
 
@@ -400,7 +401,7 @@ mod tests {
         create_tag(&format!("{local}-other"), "v0.1.0")?;
 
         let mut check = GitCheck::open(&local)?;
-        let mut context: HashMap<String, String> = HashMap::new();
+        let mut context: Context = HashMap::new();
         let is_pulled = check.check_inner(&mut context)?;
         assert!(is_pulled);
 
@@ -430,7 +431,7 @@ mod tests {
         fs::write(format!("{local}/1"), "22")?;
 
         let mut check = GitCheck::open(&local)?;
-        let mut context: HashMap<String, String> = HashMap::new();
+        let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
@@ -460,7 +461,7 @@ mod tests {
         create_merge_conflict(&local)?;
 
         let mut check = GitCheck::open(&local)?;
-        let mut context: HashMap<String, String> = HashMap::new();
+        let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
@@ -489,7 +490,7 @@ mod tests {
         fs::set_permissions(&local, perms)?;
 
         let mut check: GitCheck = GitCheck::open(&local)?;
-        let mut context: HashMap<String, String> = HashMap::new();
+        let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(

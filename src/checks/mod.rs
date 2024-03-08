@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use crate::context::Context;
 use mockall::automock;
 use thiserror::Error;
 
@@ -35,5 +34,5 @@ pub enum CheckError {
 #[automock]
 pub trait Check {
     /// Check if there are changes and update if necessary.
-    fn check(&mut self, context: &mut HashMap<String, String>) -> Result<bool, CheckError>;
+    fn check(&mut self, context: &mut Context) -> Result<bool, CheckError>;
 }
