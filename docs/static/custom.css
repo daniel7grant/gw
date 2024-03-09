@@ -40,3 +40,24 @@ a:not([href^='#']):hover {
         display: none;
     }
 }
+
+table {
+    text-align: left;
+}
+
+table td:nth-child(1),
+table td:nth-child(2) {
+    max-width: 120px;
+}
+
+
+@media screen and (min-width: 800px) {
+    table td:nth-child(1),
+    table td:nth-child(2) {
+        max-width: 200px;
+    }
+}
+
+table code {
+    word-wrap: break-word;
+}

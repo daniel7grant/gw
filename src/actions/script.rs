@@ -1,7 +1,11 @@
 use super::{Action, ActionError};
+use crate::context::Context;
 use duct_sh::sh_dangerous;
 use log::{debug, error};
+use std::collections::HashMap;
 use thiserror::Error;
+
+const ACTION_NAME: &str = "SCRIPT";
 
 /// An action to run a custom shell script.
 ///
@@ -45,9 +49,21 @@ impl ScriptAction {
         ScriptAction { directory, command }
     }
 
-    fn run_inner(&self) -> Result<String, ScriptError> {
+    fn run_inner(&self, context: &Context) -> Result<String, ScriptError> {
+        let mut env: HashMap<String, String> = HashMap::from([
+            ("CI".to_string(), "true".to_string()),
+            ("GW_ACTION_NAME".to_string(), ACTION_NAME.to_string()),
+            ("GW_DIRECTORY".to_string(), self.directory.clone()),
+        ]);
+        env.extend(
+            context
+                .iter()
+                .map(|(k, v)| (format!("GW_{k}"), v.to_owned())),
+        );
+
         // We can run `sh_dangerous`, because it is on the user's computer.
         let output = sh_dangerous(&self.command)
+            .full_env(env)
             .stderr_to_stdout()
             .stdout_capture()
             .dir(&self.directory)
@@ -73,13 +89,13 @@ impl Action for ScriptAction {
     /// Run the script in a subshell (`/bin/sh` on *nix, `cmd.exe` on Windows).
     /// If the script fails to start, return a non-zero error code or prints non-utf8
     /// characters, this function will result in an error.
-    fn run(&self) -> Result<(), ActionError> {
+    fn run(&self, context: &Context) -> Result<(), ActionError> {
         debug!(
             "Running script: {} in directory {}.",
             self.command, self.directory
         );
 
-        match self.run_inner() {
+        match self.run_inner(context) {
             Ok(result) => {
                 debug!("Command success, output:");
                 result.lines().for_each(|line| {
@@ -111,8 +127,28 @@ mod tests {
     fn it_should_run_the_script() -> Result<(), ScriptError> {
         let action = ScriptAction::new(String::from("."), String::from("echo test"));
 
-        let output = action.run_inner()?;
+        let context: Context = HashMap::new();
+        let output = action.run_inner(&context)?;
         assert_eq!("test", output);
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_should_set_the_env_vars() -> Result<(), ScriptError> {
+        let action = ScriptAction::new(String::from("."), String::from("printenv"));
+
+        let context: Context = HashMap::from([
+            ("TRIGGER_NAME", "TEST-TRIGGER".to_string()),
+            ("CHECK_NAME", "TEST-CHECK".to_string()),
+        ]);
+        let output = action.run_inner(&context)?;
+        let lines: Vec<&str> = output.lines().collect();
+        assert!(lines.contains(&"CI=true"));
+        assert!(lines.contains(&"GW_TRIGGER_NAME=TEST-TRIGGER"));
+        assert!(lines.contains(&"GW_CHECK_NAME=TEST-CHECK"));
+        assert!(lines.contains(&"GW_ACTION_NAME=SCRIPT"));
+        assert!(lines.contains(&"GW_DIRECTORY=."));
 
         Ok(())
     }
@@ -121,7 +157,8 @@ mod tests {
     fn it_should_catch_error_output() -> Result<(), ScriptError> {
         let action = ScriptAction::new(String::from("."), String::from("echo err >&2"));
 
-        let output = action.run_inner()?;
+        let context: Context = HashMap::new();
+        let output = action.run_inner(&context)?;
         assert_eq!("err", output);
 
         Ok(())
@@ -131,7 +168,8 @@ mod tests {
     fn it_should_fail_if_the_script_fails() -> Result<(), ScriptError> {
         let action = ScriptAction::new(String::from("."), String::from("false"));
 
-        let result = action.run_inner();
+        let context: Context = HashMap::new();
+        let result = action.run_inner(&context);
         assert!(
             matches!(result, Err(ScriptError::NonZeroExitcode(1, _))),
             "{result:?} should match non zero exit code"
@@ -145,7 +183,8 @@ mod tests {
         let action =
             ScriptAction::new(String::from("."), String::from("/bin/echo -e '\\xc3\\x28'"));
 
-        let result = action.run_inner();
+        let context: Context = HashMap::new();
+        let result = action.run_inner(&context);
         assert!(
             matches!(result, Err(ScriptError::NonUtf8Return)),
             "{result:?} should match non utf8 return"

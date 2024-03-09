@@ -1,3 +1,4 @@
+use crate::context::Context;
 use mockall::automock;
 use thiserror::Error;
 
@@ -26,5 +27,5 @@ pub enum ActionError {
 #[automock]
 pub trait Action {
     /// Initiate the action
-    fn run(&self) -> Result<(), ActionError>;
+    fn run(&self, context: &Context) -> Result<(), ActionError>;
 }

@@ -1,3 +1,4 @@
+use crate::context::Context;
 use mockall::automock;
 use thiserror::Error;
 
@@ -16,7 +17,7 @@ pub enum CheckError {
     #[error("permission denied: {0}")]
     PermissionDenied(String),
     /// Cannot update the check, because there is a conflict.
-	/// This can be a merge conflict, a filesystem issue
+    /// This can be a merge conflict, a filesystem issue
     #[error("there is a conflict: {0}")]
     Conflict(String),
     /// Running the trigger failed.
@@ -33,5 +34,5 @@ pub enum CheckError {
 #[automock]
 pub trait Check {
     /// Check if there are changes and update if necessary.
-    fn check(&mut self) -> Result<bool, CheckError>;
+    fn check(&mut self, context: &mut Context) -> Result<bool, CheckError>;
 }

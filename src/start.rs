@@ -1,10 +1,11 @@
 use crate::{
     actions::Action,
     checks::{Check, CheckError},
+    context::Context,
     triggers::{Trigger, TriggerError},
 };
-use std::{sync::mpsc, thread};
 use log::{debug, error};
+use std::{sync::mpsc, thread};
 use thiserror::Error;
 
 /// A custom error implementation for the start function
@@ -24,7 +25,7 @@ pub fn start(
     check: &mut Box<dyn Check>,
     actions: &[Box<dyn Action>],
 ) -> Result<(), StartError> {
-    let (tx, rx) = mpsc::channel::<Option<()>>();
+    let (tx, rx) = mpsc::channel::<Option<Context>>();
 
     if triggers.is_empty() {
         return Err(StartError::NoTriggers);
@@ -40,17 +41,17 @@ pub fn start(
         });
     }
 
-	debug!("Waiting on triggers.");
-    while let Ok(Some(())) = rx.recv() {
-        match check.check() {
+    debug!("Waiting on triggers.");
+    while let Ok(Some(mut context)) = rx.recv() {
+        match check.check(&mut context) {
             Ok(true) => {
-				debug!("There are updates, running scripts.");
+                debug!("There are updates, running scripts.");
                 for action in actions {
-                    let _ = action.run();
+                    let _ = action.run(&context);
                 }
             }
             Ok(false) => {
-				debug!("There are no updates.");
+                debug!("There are no updates.");
             }
             Err(err) => {
                 error!("Check failed: {err}.");
@@ -69,13 +70,14 @@ mod tests {
         checks::{Check, MockCheck},
         triggers::{MockTrigger, Trigger},
     };
+    use std::collections::HashMap;
 
     #[test]
     fn it_should_call_once() {
         // Setup mock triggers.
         let mut mock_trigger = MockTrigger::new();
         mock_trigger.expect_listen().returning(|tx| {
-            tx.send(Some(()))?;
+            tx.send(Some(HashMap::new()))?;
             tx.send(None)?;
             Ok(())
         });
@@ -83,12 +85,12 @@ mod tests {
 
         // Setup mock check.
         let mut mock_check = MockCheck::new();
-        mock_check.expect_check().times(1).returning(|| Ok(true));
+        mock_check.expect_check().times(1).returning(|_| Ok(true));
         let mut check: Box<dyn Check> = Box::new(mock_check);
 
         // Setup mock action.
         let mut mock_action = MockAction::new();
-        mock_action.expect_run().times(1).returning(|| Ok(()));
+        mock_action.expect_run().times(1).returning(|_| Ok(()));
         let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
 
         let result = start(triggers, &mut check, actions);
@@ -100,7 +102,7 @@ mod tests {
         // Setup mock triggers.
         let mut mock_trigger = MockTrigger::new();
         mock_trigger.expect_listen().returning(|tx| {
-            tx.send(Some(()))?;
+            tx.send(Some(HashMap::new()))?;
             tx.send(None)?;
             Ok(())
         });
@@ -108,7 +110,7 @@ mod tests {
 
         // Setup mock check.
         let mut mock_check = MockCheck::new();
-        mock_check.expect_check().times(1).returning(|| Ok(false));
+        mock_check.expect_check().times(1).returning(|_| Ok(false));
         let mut check: Box<dyn Check> = Box::new(mock_check);
 
         // Setup mock action.
@@ -125,7 +127,7 @@ mod tests {
         // Setup mock triggers.
         let mut mock_trigger = MockTrigger::new();
         mock_trigger.expect_listen().returning(|tx| {
-            tx.send(Some(()))?;
+            tx.send(Some(HashMap::new()))?;
             tx.send(None)?;
             Ok(())
         });
@@ -136,7 +138,7 @@ mod tests {
         mock_check
             .expect_check()
             .times(1)
-            .returning(|| Err(CheckError::Misconfigured(String::from("Testing purposes."))));
+            .returning(|_| Err(CheckError::Misconfigured(String::from("Testing purposes."))));
         let mut check: Box<dyn Check> = Box::new(mock_check);
 
         // Setup mock action.

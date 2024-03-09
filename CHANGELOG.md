@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+- Add context to share data between different steps
+- Expose the context through environmental variables for the scripts
+- Add documentation for the environmental variables
+
 ## [0.2.2] - 2024-02-17
 
 - Add `-v` flag to increase verbosity, default log level changed to INFO

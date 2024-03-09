@@ -1,12 +1,16 @@
 use super::{Trigger, TriggerError};
+use crate::context::Context;
 use duration_string::DurationString;
 use log::info;
 use std::{
+    collections::HashMap,
     sync::mpsc::Sender,
     thread::sleep,
     time::{Duration, Instant},
 };
 use thiserror::Error;
+
+const TRIGGER_NAME: &str = "SCHEDULE";
 
 /// A trigger that runs the checks periodically.
 ///
@@ -21,7 +25,7 @@ pub struct ScheduleTrigger {
 pub enum ScheduleError {
     /// Cannot send trigger with Sender. This usually because the receiver is dropped.
     #[error("cannot trigger changes, receiver hang up")]
-    ReceiverHangup(#[from] std::sync::mpsc::SendError<Option<()>>),
+    ReceiverHangup(#[from] std::sync::mpsc::SendError<Option<Context>>),
 }
 
 impl From<ScheduleError> for TriggerError {
@@ -55,11 +59,19 @@ impl ScheduleTrigger {
     /// wait until the end of the timeout and returns with false.
     pub fn step(
         &self,
-        tx: Sender<Option<()>>,
+        tx: Sender<Option<Context>>,
         final_timeout: Option<Instant>,
     ) -> Result<bool, ScheduleError> {
         let next_check = Instant::now() + self.duration;
-        tx.send(Some(()))?;
+
+        let context: Context = HashMap::from([
+            ("TRIGGER_NAME", TRIGGER_NAME.to_string()),
+            (
+                "SCHEDULE_DELAY",
+                DurationString::from(self.duration).to_string(),
+            ),
+        ]);
+        tx.send(Some(context))?;
 
         if let Some(final_timeout) = final_timeout {
             if next_check > final_timeout {
@@ -80,7 +92,7 @@ impl Trigger for ScheduleTrigger {
     /// Every step triggers and then waits the given duration. In case of an error,
     /// it terminates or if it will reach the final timeout it will wait until
     /// the end of the timeout and return.
-    fn listen(&self, tx: Sender<Option<()>>) -> Result<(), TriggerError> {
+    fn listen(&self, tx: Sender<Option<Context>>) -> Result<(), TriggerError> {
         let final_timeout = self.timeout.map(|t| Instant::now() + t);
         info!(
             "Starting schedule in every {}.",
@@ -124,7 +136,7 @@ mod tests {
     #[test]
     fn it_should_trigger_every_100_ms() -> Result<(), TriggerError> {
         let trigger = ScheduleTrigger::new(Duration::from_millis(100));
-        let (tx, rx) = mpsc::channel::<Option<()>>();
+        let (tx, rx) = mpsc::channel::<Option<Context>>();
 
         for _ in 0..5 {
             let start = Instant::now();
@@ -133,10 +145,15 @@ mod tests {
             assert!(should_continue);
 
             // It should be close to the timings
-            let _ = rx.recv().unwrap();
+            let msg = rx.recv().unwrap();
             let diff = start.elapsed();
             assert!(diff >= Duration::from_millis(95));
             assert!(diff <= Duration::from_millis(105));
+
+            // It should contain the hashmap
+            let context = msg.unwrap();
+            assert_eq!(TRIGGER_NAME, context.get("TRIGGER_NAME").unwrap());
+            assert_eq!("100ms", context.get("SCHEDULE_DELAY").unwrap());
         }
 
         Ok(())
@@ -145,7 +162,7 @@ mod tests {
     #[test]
     fn it_should_not_continue_after_the_timeout() -> Result<(), TriggerError> {
         let trigger = ScheduleTrigger::new(Duration::from_millis(100));
-        let (tx, _rx) = mpsc::channel::<Option<()>>();
+        let (tx, _rx) = mpsc::channel::<Option<Context>>();
 
         let final_timeout = Instant::now() + Duration::from_millis(350);
         for i in 0..5 {
@@ -170,7 +187,7 @@ mod tests {
     #[test]
     fn it_should_not_trigger_on_a_send_error() {
         let trigger = ScheduleTrigger::new(Duration::from_millis(100));
-        let (tx, rx) = mpsc::channel::<Option<()>>();
+        let (tx, rx) = mpsc::channel::<Option<Context>>();
 
         // Close receiving end, to create a send error
         drop(rx);

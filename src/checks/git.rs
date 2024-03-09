@@ -1,10 +1,13 @@
-use self::repository::GitRepository;
+use self::repository::{shorthash, GitRepository, GitRepositoryInformation};
 use super::{Check, CheckError};
+use crate::context::Context;
 use std::fmt::Debug;
 use thiserror::Error;
 
 mod credentials;
 mod repository;
+
+const CHECK_NAME: &str = "GIT";
 
 /// A check to fetch and pull a local git repository.
 ///
@@ -18,6 +21,9 @@ pub enum GitError {
     /// The directory is not a valid git repository.
     #[error("{0} does not exist or not a git repository")]
     NotAGitRepository(String),
+    /// Cannot parse HEAD, either stuck an unborn branch or some deleted reference
+    #[error("HEAD is invalid, probably points to invalid commit")]
+    NoHead,
     /// There is no branch in the repository currently. It can be a repository
     /// without any branch, or checked out on a commit.
     #[error("repository is not on a branch")]
@@ -48,6 +54,7 @@ impl From<GitError> for CheckError {
     fn from(value: GitError) -> Self {
         match value {
             GitError::NotAGitRepository(_)
+            | GitError::NoHead
             | GitError::NotOnABranch
             | GitError::NoRemoteForBranch(_) => CheckError::Misconfigured(value.to_string()),
             GitError::ConfigLoadingFailed => CheckError::PermissionDenied(value.to_string()),
@@ -68,10 +75,53 @@ impl GitCheck {
         Ok(GitCheck(repo))
     }
 
-    fn check_inner(&mut self) -> Result<bool, GitError> {
+    fn check_inner(&mut self, context: &mut Context) -> Result<bool, GitError> {
         let GitCheck(repo) = self;
+
+        // Load context data from repository information
+        let information = repo.get_repository_information()?;
+        context.insert("CHECK_NAME", CHECK_NAME.to_string());
+        match information {
+            GitRepositoryInformation::Branch {
+                ref_type,
+                ref_name,
+                branch_name,
+                commit_sha,
+                commit_short_sha,
+                remote_name,
+                remote_url,
+            } => {
+                context.insert("GIT_REF_TYPE", ref_type);
+                context.insert("GIT_REF_NAME", ref_name);
+                context.insert("GIT_BRANCH_NAME", branch_name);
+                context.insert("GIT_BEFORE_COMMIT_SHA", commit_sha.clone());
+                context.insert("GIT_BEFORE_COMMIT_SHORT_SHA", commit_short_sha.clone());
+                context.insert("GIT_COMMIT_SHA", commit_sha);
+                context.insert("GIT_COMMIT_SHORT_SHA", commit_short_sha);
+                context.insert("GIT_REMOTE_NAME", remote_name);
+                context.insert("GIT_REMOTE_URL", remote_url);
+            }
+            GitRepositoryInformation::Reference {
+                ref_type,
+                ref_name,
+                commit_sha,
+                commit_short_sha,
+            } => {
+                context.insert("GIT_REF_TYPE", ref_type);
+                context.insert("GIT_REF_NAME", ref_name);
+                context.insert("GIT_BEFORE_COMMIT_SHA", commit_sha);
+                context.insert("GIT_BEFORE_COMMIT_SHORT_SHA", commit_short_sha);
+            }
+        }
+
+        // Pull repository contents and report
         let fetch_commit = repo.fetch()?;
         if repo.check_if_updatable(&fetch_commit)? && repo.pull(&fetch_commit)? {
+            context.insert("GIT_COMMIT_SHA", fetch_commit.id().to_string());
+            context.insert(
+                "GIT_COMMIT_SHORT_SHA",
+                shorthash(&fetch_commit.id().to_string()),
+            );
             Ok(true)
         } else {
             Ok(false)
@@ -82,8 +132,8 @@ impl GitCheck {
 impl Check for GitCheck {
     /// Fetch and pull changes from the remote repository on the current branch.
     /// It returns true if the pull was successful and there are new changes.
-    fn check(&mut self) -> Result<bool, CheckError> {
-        let update_successful = self.check_inner()?;
+    fn check(&mut self, context: &mut Context) -> Result<bool, CheckError> {
+        let update_successful = self.check_inner(context)?;
 
         Ok(update_successful)
     }
@@ -94,7 +144,7 @@ mod tests {
     use super::*;
     use duct::cmd;
     use rand::distributions::{Alphanumeric, DistString};
-    use std::{error::Error, fs, path::Path};
+    use std::{collections::HashMap, error::Error, fs, path::Path};
 
     fn get_random_id() -> String {
         Alphanumeric.sample_string(&mut rand::thread_rng(), 16)
@@ -140,6 +190,12 @@ mod tests {
         let tags = cmd!("git", "tag", "-l").dir(path).read()?;
 
         Ok(tags)
+    }
+
+    fn get_last_commit(path: &str) -> Result<String, Box<dyn Error>> {
+        let commit_sha = cmd!("git", "rev-parse", "HEAD").dir(path).read()?;
+
+        Ok(commit_sha)
     }
 
     fn cleanup_repository(local: &str) -> Result<(), Box<dyn Error>> {
@@ -219,7 +275,8 @@ mod tests {
         create_failing_repository(&local, false)?;
 
         let mut check: GitCheck = GitCheck::open(&local)?;
-        let error = check.check_inner().err().unwrap();
+        let mut context: Context = HashMap::new();
+        let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
             matches!(error, GitError::NotOnABranch),
@@ -240,7 +297,8 @@ mod tests {
         create_failing_repository(&local, true)?;
 
         let mut check: GitCheck = GitCheck::open(&local)?;
-        let error = check.check_inner().err().unwrap();
+        let mut context: Context = HashMap::new();
+        let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
             matches!(error, GitError::NoRemoteForBranch(_)),
@@ -260,8 +318,24 @@ mod tests {
         create_empty_repository(&local)?;
 
         let mut check = GitCheck::open(&local)?;
-        let is_pulled = check.check_inner()?;
+        let mut context: Context = HashMap::new();
+        let is_pulled = check.check_inner(&mut context)?;
         assert!(!is_pulled);
+
+        // It should set the context keys
+        let commit_sha = get_last_commit(&local)?;
+        let remote_path = fs::canonicalize(format!("{local}-remote"))?;
+        let remote = remote_path.to_str().unwrap();
+        assert_eq!("branch", context.get("GIT_REF_TYPE").unwrap());
+        assert_eq!("refs/heads/master", context.get("GIT_REF_NAME").unwrap());
+        assert_eq!("master", context.get("GIT_BRANCH_NAME").unwrap());
+        assert_eq!(&commit_sha, context.get("GIT_BEFORE_COMMIT_SHA").unwrap());
+        assert_eq!(
+            &commit_sha[0..7],
+            context.get("GIT_BEFORE_COMMIT_SHORT_SHA").unwrap()
+        );
+        assert_eq!("origin", context.get("GIT_REMOTE_NAME").unwrap());
+        assert_eq!(remote, context.get("GIT_REMOTE_URL").unwrap());
 
         cleanup_repository(&local)?;
 
@@ -278,12 +352,37 @@ mod tests {
         // Create another repository and push a new commit
         create_other_repository(&local)?;
 
+        let before_commit_sha = get_last_commit(&local)?;
         let mut check = GitCheck::open(&local)?;
-        let is_pulled = check.check_inner()?;
+        let mut context: Context = HashMap::new();
+        let is_pulled = check.check_inner(&mut context)?;
         assert!(is_pulled);
 
         // The pushed file should be pulled
         assert!(Path::new(&format!("{local}/2")).exists());
+
+        // It should set the context keys
+        let remote_path = fs::canonicalize(format!("{local}-remote"))?;
+        let remote = remote_path.to_str().unwrap();
+        let commit_sha = get_last_commit(&local)?;
+        assert_eq!("branch", context.get("GIT_REF_TYPE").unwrap());
+        assert_eq!("refs/heads/master", context.get("GIT_REF_NAME").unwrap());
+        assert_eq!("master", context.get("GIT_BRANCH_NAME").unwrap());
+        assert_eq!(
+            &before_commit_sha,
+            context.get("GIT_BEFORE_COMMIT_SHA").unwrap()
+        );
+        assert_eq!(
+            &before_commit_sha[0..7],
+            context.get("GIT_BEFORE_COMMIT_SHORT_SHA").unwrap()
+        );
+        assert_eq!(&commit_sha, context.get("GIT_COMMIT_SHA").unwrap());
+        assert_eq!(
+            &commit_sha[0..7],
+            context.get("GIT_COMMIT_SHORT_SHA").unwrap()
+        );
+        assert_eq!("origin", context.get("GIT_REMOTE_NAME").unwrap());
+        assert_eq!(remote, context.get("GIT_REMOTE_URL").unwrap());
 
         cleanup_repository(&local)?;
 
@@ -302,7 +401,8 @@ mod tests {
         create_tag(&format!("{local}-other"), "v0.1.0")?;
 
         let mut check = GitCheck::open(&local)?;
-        let is_pulled = check.check_inner()?;
+        let mut context: Context = HashMap::new();
+        let is_pulled = check.check_inner(&mut context)?;
         assert!(is_pulled);
 
         // The pushed file should be pulled
@@ -331,7 +431,8 @@ mod tests {
         fs::write(format!("{local}/1"), "22")?;
 
         let mut check = GitCheck::open(&local)?;
-        let error = check.check_inner().err().unwrap();
+        let mut context: Context = HashMap::new();
+        let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
             matches!(error, GitError::DirtyWorkingTree),
@@ -360,7 +461,8 @@ mod tests {
         create_merge_conflict(&local)?;
 
         let mut check = GitCheck::open(&local)?;
-        let error = check.check_inner().err().unwrap();
+        let mut context: Context = HashMap::new();
+        let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
             matches!(error, GitError::MergeConflict),
@@ -388,7 +490,8 @@ mod tests {
         fs::set_permissions(&local, perms)?;
 
         let mut check: GitCheck = GitCheck::open(&local)?;
-        let error = check.check_inner().err().unwrap();
+        let mut context: Context = HashMap::new();
+        let error = check.check_inner(&mut context).err().unwrap();
 
         assert!(
             matches!(error, GitError::FailedSettingHead(_)),
