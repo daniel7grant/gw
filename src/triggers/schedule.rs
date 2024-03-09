@@ -67,7 +67,7 @@ impl ScheduleTrigger {
         let context: Context = HashMap::from([
             ("TRIGGER_NAME", TRIGGER_NAME.to_string()),
             (
-                "SCHEDULE_DURATION",
+                "SCHEDULE_DELAY",
                 DurationString::from(self.duration).to_string(),
             ),
         ]);
@@ -153,7 +153,7 @@ mod tests {
             // It should contain the hashmap
             let context = msg.unwrap();
             assert_eq!(TRIGGER_NAME, context.get("TRIGGER_NAME").unwrap());
-            assert_eq!("100ms", context.get("SCHEDULE_DURATION").unwrap());
+            assert_eq!("100ms", context.get("SCHEDULE_DELAY").unwrap());
         }
 
         Ok(())

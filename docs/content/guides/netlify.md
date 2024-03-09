@@ -13,12 +13,12 @@ If you want to generate a version for every commit of your code, and expose it a
 
 The main idea behind this solution is that most static site generators allow changing output directories. We can wire this together with the git short hash set in the environment by `gw`, and build the different versions side-by-side.
 
-For this you have to find the output directory flag in your static site generator and set it to the `GW_COMMIT_SHORTHASH` variable. For example for Jekyll and Hugo this is the `--destination` flag, in 11ty this is the `--output` flag.
+For this you have to find the output directory flag in your static site generator and set it to the `GW_GIT_COMMIT_SHORT_SHA` variable. For example for Jekyll and Hugo this is the `--destination` flag, in 11ty this is the `--output` flag.
 
 ```sh
-jekyll build --destination=output/$GW_COMMIT_SHORTHASH
-hugo --destination=output/$GW_COMMIT_SHORTHASH
-npx @11ty/eleventy --input=. --output=output/$GW_COMMIT_SHORTHASH
+jekyll build --destination=output/$GW_GIT_COMMIT_SHORT_SHA
+hugo --destination=output/$GW_GIT_COMMIT_SHORT_SHA
+npx @11ty/eleventy --input=. --output=output/$GW_GIT_COMMIT_SHORT_SHA
 ```
 
 ## gw configuration
@@ -26,7 +26,7 @@ npx @11ty/eleventy --input=. --output=output/$GW_COMMIT_SHORTHASH
 You can use this command to configure your `gw`:
 
 ```sh
-gw /path/to/directory --script 'jekyll build --destination=output/$GW_COMMIT_SHORTHASH'
+gw /path/to/directory --script 'jekyll build --destination=output/$GW_GIT_COMMIT_SHORT_SHA'
 ```
 
 ## Web server configuration

@@ -18,5 +18,5 @@ gw /path/to/repo -s 'npm run build' -s 'npx pm2 restart'
 You can use the `notify-send` command to popup notifications on Linux, let's use it to show if somebody commited to our branch.
 
 ```sh
-gw /path/to/repo -s 'notify-send "$GW_COMMIT_AUTHOR has commited to your branch"'
+gw /path/to/repo -s 'notify-send "There are new commits on your branch!"'
 ```
