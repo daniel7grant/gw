@@ -15,7 +15,7 @@ Watch local git repositories, keep in sync with remote and run commands.
 
 Features of `gw`:
 - **lightweight**: it is only a 1.4MB binary
-- **runs anywhere**: use it on baremetal, [systemd](./usage/systemd) or [docker](./usage/docker)
+- **runs anywhere**: use it on baremetal, [systemd](/usage/systemd) or [docker](/usage/docker)
 - **open source**: written entirely in Rust, you can build it from source in a few minutes
 - **pull-based**: works on any network, even behind a NAT or VPN
 - **flexible**: build, deploy, restart or anything you can imagine
@@ -28,7 +28,7 @@ To get started download the `gw` binary from [releases](https://github.com/danie
 cargo install gw-bin
 ```
 
-For more installation methods, see [Installation](./usage/installation).
+For more installation methods, see [Installation](/usage/installation).
 
 ## Get started
 
@@ -38,14 +38,14 @@ To use `gw`, you have to point it to your local repository and it will pull chan
 gw /path/to/repo --script 'run build process' --script 'restart deployment'
 ```
 
-For your first steps with `gw`, see [Get started](./usage/start).
+For your first steps with `gw`, see [Get started](/usage/start).
 
 ## Next steps
 
 But this is not all `gw` can do. With a little creativity you can create a lot of things, for example:
 
-- pull changes for [development](./guides/development) and get a notification;
-- rollout a [docker-compose](./guides/docker-compose) deployment continously;
-- build on all commits for a minimal [Netlify](./guides/netlify) alternative,
+- pull changes for [development](/guides/development) and get a notification;
+- rollout a [docker-compose](/guides/docker-compose) deployment continously;
+- build on all commits for a minimal [Netlify](/guides/netlify) alternative,
 
-...and many thing else. For a complete list, check out the [guides page](./guides).
+...and many thing else. For a complete list, check out the [guides page](/guides).
