@@ -99,7 +99,7 @@ impl Action for ScriptAction {
             Ok(result) => {
                 debug!("Command success, output:");
                 result.lines().for_each(|line| {
-                    debug!("{line}");
+                    debug!("  {line}");
                 });
                 Ok(())
             }
