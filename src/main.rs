@@ -33,10 +33,11 @@ fn main_inner() -> Result<(), MainError> {
     }
 
     SimpleLogger::new()
-        .with_level(match args.verbose {
-            0 => LevelFilter::Info,
-            1 => LevelFilter::Debug,
-            _ => LevelFilter::Trace,
+        .with_level(match (args.quiet, args.verbose) {
+            (true, _) => LevelFilter::Error,
+            (false, 0) => LevelFilter::Info,
+            (false, 1) => LevelFilter::Debug,
+            (false, _) => LevelFilter::Trace,
         })
         .env()
         .init()?;

@@ -1,6 +1,6 @@
 use super::{Trigger, TriggerError};
 use crate::context::Context;
-use log::info;
+use log::debug;
 use std::{collections::HashMap, sync::mpsc::Sender};
 
 const TRIGGER_NAME: &str = "ONCE";
@@ -11,7 +11,7 @@ pub struct OnceTrigger;
 impl Trigger for OnceTrigger {
     /// Starts a trigger that runs once and terminates after.
     fn listen(&self, tx: Sender<Option<Context>>) -> Result<(), TriggerError> {
-        info!("Triggering only once.");
+        debug!("Triggering only once.");
         let context: Context = HashMap::from([("TRIGGER_NAME", TRIGGER_NAME.to_string())]);
         tx.send(Some(context))?;
         tx.send(None)?;

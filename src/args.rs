@@ -40,7 +40,7 @@ pub struct Args {
     pub scripts: Vec<String>,
 
     /// Try to pull only once. Useful for cronjobs.
-    #[options()]
+    #[options(long = "once", no_short)]
     pub once: bool,
 
     /// The trigger on which to run.
@@ -63,6 +63,10 @@ pub struct Args {
     /// Increase verbosity, can be set multiple times (-v debug, -vv tracing)
     #[options(count)]
     pub verbose: u8,
+
+    /// Only print error messages.
+    #[options()]
+    pub quiet: bool,
 
     /// Print the current version.
     #[options(short = "V")]
