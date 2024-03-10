@@ -64,6 +64,10 @@ pub struct Args {
     #[options(count)]
     pub verbose: u8,
 
+    /// Print the current version.
+    #[options(short = "V")]
+    pub version: bool,
+
     /// Print this help.
     #[options()]
     pub help: bool,

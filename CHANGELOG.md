@@ -5,6 +5,7 @@
 - Add context to share data between different steps
 - Expose the context through environmental variables for the scripts
 - Add documentation for the environmental variables
+- Add flag to print current version
 
 ## [0.2.2] - 2024-02-17
 

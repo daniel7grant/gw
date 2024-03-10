@@ -27,6 +27,11 @@ pub enum MainError {
 fn main_inner() -> Result<(), MainError> {
     let args = parse_args();
 
+    if args.version {
+        println!("{}", env!("CARGO_PKG_VERSION"));
+        process::exit(0);
+    }
+
     SimpleLogger::new()
         .with_level(match args.verbose {
             0 => LevelFilter::Info,
