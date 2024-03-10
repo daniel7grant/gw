@@ -45,7 +45,14 @@ pub fn start(
     while let Ok(Some(mut context)) = rx.recv() {
         match check.check(&mut context) {
             Ok(true) => {
-                debug!("There are updates, running scripts.");
+                debug!(
+                    "There are updates, {}.",
+                    if actions.is_empty() {
+                        "pulling"
+                    } else {
+                        "running scripts"
+                    }
+                );
                 for action in actions {
                     let _ = action.run(&context);
                 }

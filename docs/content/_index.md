@@ -20,7 +20,7 @@ Features of `gw`:
 - **pull-based**: works on any network, even behind a NAT or VPN
 - **flexible**: build, deploy, restart or anything you can imagine
 
-## Get started
+## Installation
 
 To get started download the `gw` binary from [releases](https://github.com/daniel7grant/gw/releases/latest) or install with [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html):
 
@@ -30,13 +30,17 @@ cargo install gw-bin
 
 For more installation methods, see [Installation](./usage/installation).
 
-## Usage
+## Get started
 
-To use `gw`, you have to point it to your local repository and it will pull changes automatically. You can run scripts on every pull to build or restart your deployments with the `--script` flag:
+To use `gw`, you have to point it to your local repository and it will pull changes automatically. You can run scripts on every pull to build or restart your deployments with the `--script` flag.
 
 ```sh
-gw /path/to/repo --script 'tool run build' --script 'deployment restart'
+gw /path/to/repo --script 'run build process' --script 'restart deployment'
 ```
+
+For your first steps with `gw`, see [Get started](./usage/start).
+
+## Next steps
 
 But this is not all `gw` can do. With a little creativity you can create a lot of things, for example:
 
