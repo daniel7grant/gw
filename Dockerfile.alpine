@@ -1,10 +1,13 @@
-FROM rust:1.75-alpine AS builder
+FROM rust:1.80-alpine AS builder
 
 WORKDIR /app
 
+ARG OPENSSL_STATIC=1
+
 RUN apk add --no-cache \
-        libressl-dev \
-        musl-dev
+        make \
+        musl-dev \
+        perl
 
 COPY ./Cargo.lock ./Cargo.toml /app
 COPY ./src /app/src
@@ -14,11 +17,10 @@ RUN cargo build --release
 
 FROM alpine:3.19
 
-RUN echo "[safe] \n\
+RUN printf "[safe] \n\
     directory = *" > /etc/gitconfig && \
     apk add --no-cache \
-        ca-certificates \
-        openssh-client
+        ca-certificates
 
 COPY --from=builder /app/target/release/gw /usr/bin/gw
 

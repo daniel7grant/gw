@@ -1,4 +1,4 @@
-FROM rust:1.75 AS builder
+FROM rust:1.80 AS builder
 
 WORKDIR /app
 
@@ -12,13 +12,11 @@ FROM debian:12-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN echo "[safe] \n\
-    directory = *" > /etc/gitconfig && \
+RUN printf "[safe] \n\
+        directory = *" > /etc/gitconfig && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
-        openssl \
-        openssh-client \
         && \
     rm -rf /var/lib/apt/lists/*
 

@@ -7,8 +7,6 @@ edition = "2021"
 documentation = "https://github.com/daniel7grant/gw"
 repository = "https://github.com/daniel7grant/gw"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 dirs = "5.0.1"
 duct_sh = "0.13.7"
@@ -20,6 +18,9 @@ mockall = "0.12.1"
 simple_logger = "4.3.3"
 thiserror = "1.0.56"
 tiny_http = "0.12.0"
+
+[target.'cfg(target_env = "musl")'.dependencies]
+git2 = { version = "0.18.1", features = ["vendored-libgit2", "vendored-openssl"] }
 
 [dev-dependencies]
 duct = "0.13.7"
