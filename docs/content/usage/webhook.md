@@ -28,7 +28,7 @@ $ gw . -v --http 0.0.0.0:10101
 # ...
 2024-03-10T16:52:51.531Z DEBUG [gw_bin::triggers::http] Received request on GET /
 2024-03-10T16:52:52.055Z DEBUG [gw_bin::checks::git::repository] Checked out 5e25714 on branch main.
-2024-03-10T16:52:52.055Z DEBUG [gw_bin::start] There are updates, pulling.
+2024-03-10T16:52:52.055Z INFO  [gw_bin::start] There are updates, pulling.
 ```
 
 If you want to disable the scheduled checks altogether and rely on the webhooks, you can set the schedule duration (`-d` flag) to zero seconds:

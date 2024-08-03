@@ -4,7 +4,7 @@ use crate::{
     context::Context,
     triggers::{Trigger, TriggerError},
 };
-use log::{debug, error};
+use log::{debug, error, info};
 use std::{sync::mpsc, thread};
 use thiserror::Error;
 
@@ -45,7 +45,7 @@ pub fn start(
     while let Ok(Some(mut context)) = rx.recv() {
         match check.check(&mut context) {
             Ok(true) => {
-                debug!(
+                info!(
                     "There are updates, {}.",
                     if actions.is_empty() {
                         "pulling"

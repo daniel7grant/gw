@@ -37,7 +37,7 @@ If you are using your own repository, create a commit in a different place, and 
 $ gw . -v
 # ...
 2024-03-10T14:48:13.447Z DEBUG [gw_bin::checks::git::repository] Checked out fc23d21 on branch main.
-2024-03-10T14:48:13.447Z DEBUG [gw_bin::start] There are updates, pulling.
+2024-03-10T14:48:13.447Z INFO  [gw_bin::start] There are updates, pulling.
 ```
 
 Also check the files or the `git log` to see that it the repository has been updated:
@@ -60,7 +60,7 @@ This will run every time there is a new commit, and after the pull it will print
 ```sh
 $ gw . -v --script 'cat DATETIME'
 # ...
-2024-03-10T15:04:37.740Z DEBUG [gw_bin::start] There are updates, running scripts.
+2024-03-10T15:04:37.740Z INFO  [gw_bin::start] There are updates, running scripts.
 2024-03-10T15:04:37.740Z DEBUG [gw_bin::actions::script] Running script: cat DATETIME in directory /home/grant/Development/quick/time.
 2024-03-10T15:04:37.742Z DEBUG [gw_bin::actions::script] Command success, output:
 2024-03-10T15:04:37.742Z DEBUG [gw_bin::actions::script]   2024-03-10T15:04:01+0000

@@ -42,14 +42,14 @@ If you prefer to use `docker-compose`, you can copy this file to a `docker-compo
 version: "3"
 
 services:
-  gw:
-    container_name: gw
-    image: danielgrant/gw
-    command: /app
-    volumes:
-      - type: volume
-        source: /path/to/repo
-        target: /app
+    gw:
+        container_name: gw
+        image: danielgrant/gw
+        command: /app
+        volumes:
+            - type: volume
+              source: /path/to/repo
+              target: /app
 ```
 
 ## Customization
@@ -85,14 +85,14 @@ If you prefer, you can also build this as part of a `docker-compose`, with runni
 version: "3"
 
 services:
-  gw:
-    container_name: gw-python
-    build: .
-    command: /app
-    volumes:
-      - type: volume
-        source: /path/to/repo
-        target: /app
+    gw:
+        container_name: gw-python
+        build: .
+        command: /app
+        volumes:
+            - type: volume
+              source: /path/to/repo
+              target: /app
 ```
 
 ### Copy binary from gw
@@ -111,7 +111,7 @@ RUN apt-get update && \
     apt-get install -y ca-certificates openssl openssh-client
 
 # Copy from the `gw` image
-COPY --from danielgrant/gw:0.2.2 /usr/bin/gw /usr/bin/gw
+COPY --from=danielgrant/gw:0.2.2 /usr/bin/gw /usr/bin/gw
 
 ENTRYPOINT ["/usr/bin/gw"]
 CMD ["/app", "-s", "npm run build"]
@@ -126,7 +126,7 @@ FROM example.org/registry/node-image:alpine
 RUN apk add ca-certificates openssh-client
 
 # Copy from the `gw` image
-COPY --from danielgrant/gw:0.2.2-alpine /usr/bin/gw /usr/bin/gw
+COPY --from=danielgrant/gw:0.2.2-alpine /usr/bin/gw /usr/bin/gw
 
 ENTRYPOINT ["/usr/bin/gw"]
 CMD ["/app", "-s", "npm run build"]
