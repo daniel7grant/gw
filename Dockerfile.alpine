@@ -17,9 +17,7 @@ RUN cargo build --release
 
 FROM alpine:3.19
 
-RUN printf "[safe] \n\
-    directory = *" > /etc/gitconfig && \
-    apk add --no-cache \
+RUN apk add --no-cache \
         ca-certificates
 
 COPY --from=builder /app/target/release/gw /usr/bin/gw

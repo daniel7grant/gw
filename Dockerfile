@@ -12,9 +12,7 @@ FROM debian:12-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN printf "[safe] \n\
-        directory = *" > /etc/gitconfig && \
-    apt-get update && \
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         && \

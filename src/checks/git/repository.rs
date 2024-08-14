@@ -24,7 +24,7 @@ pub enum GitRepositoryInformation {
 }
 
 /// A directory that is opened as a git repository.
-/// 
+///
 /// It is a wrapper around the underlying `git2` [Repository](git2::Repository).
 pub struct GitRepository {
     repo: Repository,
@@ -36,8 +36,12 @@ pub fn shorthash(sha: &str) -> String {
 }
 
 impl GitRepository {
-    /// Open a directory as a GitRepository. Fails if the directory, is not a valid git repo.
+    /// Open a directory as a GitRepository. Fails if the directory is not a valid git repo.
     pub fn open(directory: &str) -> Result<Self, GitError> {
+        let mut cfg = Config::open_default().map_err(|_| GitError::ConfigLoadingFailed)?;
+        cfg.set_str("safe.directory", directory)
+            .map_err(|_| GitError::ConfigLoadingFailed)?;
+
         let repo = Repository::open(directory)
             .map_err(|_| GitError::NotAGitRepository(String::from(directory)))?;
 

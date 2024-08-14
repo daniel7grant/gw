@@ -106,10 +106,6 @@ For this we can start off of our application image as a base layer and add the `
 ```dockerfile
 FROM example.org/registry/node-image:ubuntu
 
-# Install `gw` dependencies
-RUN apt-get update && \
-    apt-get install -y ca-certificates openssl openssh-client
-
 # Copy from the `gw` image
 COPY --from=danielgrant/gw:0.2.2 /usr/bin/gw /usr/bin/gw
 
@@ -121,9 +117,6 @@ It is similar with `alpine`, but only the `ca-certificates` and `openssh-client`
 
 ```dockerfile
 FROM example.org/registry/node-image:alpine
-
-# Install `gw` dependencies
-RUN apk add ca-certificates openssh-client
 
 # Copy from the `gw` image
 COPY --from=danielgrant/gw:0.2.2-alpine /usr/bin/gw /usr/bin/gw
