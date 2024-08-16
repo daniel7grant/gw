@@ -28,14 +28,14 @@ If you prefer to use `docker-compose`, you can copy this file to a `docker-compo
 version: "3"
 
 services:
-    gw:
-        container_name: gw
-        image: danielgrant/gw
-        command: /app
-        volumes:
-            - type: volume
-              source: /path/to/repo
-              target: /app
+  gw:
+    container_name: gw
+    image: danielgrant/gw
+    command: /app
+    volumes:
+      - type: volume
+        source: /path/to/repo
+        target: /app
 ```
 
 ## Customization
