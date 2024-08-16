@@ -134,14 +134,14 @@ impl GitRepository {
         // Fetch the remote state
         remote
             .fetch(&[branch_name], Some(&mut opts), None)
-            .map_err(|_| GitError::FetchFailed)?;
+            .map_err(|err| GitError::FetchFailed(err.to_string()))?;
 
         let fetch_head = repo
             .find_reference("FETCH_HEAD")
-            .map_err(|_| GitError::FetchFailed)?;
+            .map_err(|err| GitError::FetchFailed(err.to_string()))?;
         let fetch_commit = repo
             .reference_to_annotated_commit(&fetch_head)
-            .map_err(|_| GitError::FetchFailed)?;
+            .map_err(|err| GitError::FetchFailed(err.to_string()))?;
 
         trace!(
             "Fetched successfully to {}.",

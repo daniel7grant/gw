@@ -38,9 +38,9 @@ pub enum GitError {
     /// Cannot load the git config
     #[error("cannot load git config")]
     ConfigLoadingFailed,
-    /// Cannot fetch the current branch. This is possibly a network failure.
-    #[error("cannot fetch, might be a network error")]
-    FetchFailed,
+    /// Cannot fetch the current branch. This can be a network failure, authentication error or many other things.
+    #[error("cannot fetch: {0}")]
+    FetchFailed(String),
     /// Cannot pull updates to the current branch. This means either the merge analysis failed
     /// or there is a merge conflict.
     #[error("cannot update branch, this is likely a merge conflict")]
@@ -61,7 +61,7 @@ impl From<GitError> for CheckError {
             GitError::DirtyWorkingTree | GitError::MergeConflict => {
                 CheckError::Conflict(value.to_string())
             }
-            GitError::FetchFailed | GitError::FailedSettingHead(_) => {
+            GitError::FetchFailed(_) | GitError::FailedSettingHead(_) => {
                 CheckError::FailedUpdate(value.to_string())
             }
         }
