@@ -31,17 +31,7 @@ jobs:
             type=raw,value=latest
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - name: Docker meta for Debian
-        id: meta-alpine
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            danielgrant/gw
-          tags: |
-            type=raw,value=alpine
-            type=semver,pattern={{version}},suffix=-alpine
-            type=semver,pattern={{major}}.{{minor}},suffix=-alpine
-      - name: Build and push Debian Docker image
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           file: ./Dockerfile
@@ -49,15 +39,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=danielgrant/gw:latest
-          cache-to: type=inline
-      - name: Build and push Alpine Docker image
-        uses: docker/build-push-action@v5
-        with:
-          file: ./Dockerfile.alpine
-          push: true
-          tags: ${{ steps.meta-alpine.outputs.tags }}
-          labels: ${{ steps.meta-alpine.outputs.labels }}
-          cache-from: type=registry,ref=danielgrant/gw:alpine
           cache-to: type=inline
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v4

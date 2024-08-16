@@ -12,6 +12,7 @@
 - Ignore different owner repository warnings
 - Print original error in fetch
 - Add signal handling to handle SIGINT and SIGTERM
+- Remove debian-based image to streamline usage
 
 ## [0.2.2] - 2024-02-17
 
