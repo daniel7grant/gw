@@ -8,6 +8,10 @@
 - Add `--version` flag to print current version
 - Add `--quiet` flag to improve logging
 - Remove `-o` short flag for `--once`
+- Change musl release to build everything statically
+- Ignore different owner repository warnings
+- Print original error in fetch
+- Add signal handling to handle SIGINT and SIGTERM
 
 ## [0.2.2] - 2024-02-17
 
