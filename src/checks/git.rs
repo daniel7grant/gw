@@ -274,13 +274,12 @@ mod tests {
         // Don't create commit to create an empty repository
         create_failing_repository(&local, false)?;
 
-        let mut check: GitCheck = GitCheck::open(&local)?;
-        let mut context: Context = HashMap::new();
-        let error = check.check_inner(&mut context).err().unwrap();
+        let failing_check = GitCheck::open(&local);
+        let error = failing_check.err().unwrap();
 
         assert!(
-            matches!(error, GitError::NotOnABranch),
-            "{error:?} should be NotOnABranch"
+            matches!(error, CheckError::Misconfigured(_)),
+            "{error:?} should be Misconfigured"
         );
 
         cleanup_repository(&local)?;
@@ -296,13 +295,12 @@ mod tests {
         // Don't create commit to create an empty repository
         create_failing_repository(&local, true)?;
 
-        let mut check: GitCheck = GitCheck::open(&local)?;
-        let mut context: Context = HashMap::new();
-        let error = check.check_inner(&mut context).err().unwrap();
+        let failing_check = GitCheck::open(&local);
+        let error = failing_check.err().unwrap();
 
         assert!(
-            matches!(error, GitError::NoRemoteForBranch(_)),
-            "{error:?} should be NoRemoteForBranch"
+            matches!(error, CheckError::Misconfigured(_)),
+            "{error:?} should be Misconfigured"
         );
 
         cleanup_repository(&local)?;
