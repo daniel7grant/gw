@@ -1,4 +1,7 @@
-use super::{credentials::CredentialHandler, GitError};
+use super::{
+    credentials::{CredentialAuth, CredentialHandler},
+    GitError,
+};
 use git2::{
     AnnotatedCommit, AutotagOption, Config, FetchOptions, RemoteCallbacks, Repository,
     StatusOptions,
@@ -28,6 +31,7 @@ pub enum GitRepositoryInformation {
 /// It is a wrapper around the underlying `git2` [Repository](git2::Repository).
 pub struct GitRepository {
     repo: Repository,
+    auth: Option<CredentialAuth>,
 }
 
 /// Return the 7 characters short hash version for a commit SHA
@@ -46,10 +50,14 @@ impl GitRepository {
             .map_err(|_| GitError::NotAGitRepository(String::from(directory)))?;
 
         // Do a sanity check to fail instantly if there are any issues
-        let git_repo = GitRepository { repo };
+        let git_repo = GitRepository { repo, auth: None };
         git_repo.get_repository_information()?;
 
         Ok(git_repo)
+    }
+
+    pub fn set_auth(&mut self, auth: CredentialAuth) {
+        self.auth = Some(auth);
     }
 
     /// Get information about the current repository, for context and usage in GitRepository
@@ -120,7 +128,7 @@ impl GitRepository {
         // Setup authentication callbacks to fetch the repository
         let mut cb = RemoteCallbacks::new();
         let git_config = Config::open_default().map_err(|_| GitError::ConfigLoadingFailed)?;
-        let mut ch = CredentialHandler::new(git_config);
+        let mut ch = CredentialHandler::new(git_config, self.auth.clone());
         cb.credentials(move |url, username, allowed| {
             ch.try_next_credential(url, username, allowed)
         });

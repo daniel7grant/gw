@@ -7,6 +7,8 @@ use thiserror::Error;
 mod credentials;
 mod repository;
 
+pub use credentials::CredentialAuth;
+
 const CHECK_NAME: &str = "GIT";
 
 /// A check to fetch and pull a local git repository.
@@ -73,6 +75,10 @@ impl GitCheck {
     pub fn open(directory: &str) -> Result<Self, CheckError> {
         let repo = GitRepository::open(directory)?;
         Ok(GitCheck(repo))
+    }
+
+    pub fn set_auth(&mut self, auth: CredentialAuth) {
+        self.0.set_auth(auth);
     }
 
     fn check_inner(&mut self, context: &mut Context) -> Result<bool, GitError> {

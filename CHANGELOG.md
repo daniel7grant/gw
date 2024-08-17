@@ -10,12 +10,14 @@
 - Add `--version` flag to print current version
 - Add `--quiet` flag to improve logging
 - Add signal handling to handle SIGINT and SIGTERM
+- Add `--ssh-key` flag to change the ssh-key path
+- Add `--git-username` and `--git-password` flags to change the https authentication
 
 ### Changed
 
 - Change musl release to build everything statically
 - Ignore different owner repository warnings
-- Print original error in fetch
+- Improve error messages, print original error in fetch
 
 ### Removed
 

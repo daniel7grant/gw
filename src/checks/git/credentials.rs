@@ -7,11 +7,18 @@ use std::path::PathBuf;
 
 pub use git2;
 
+#[derive(Debug, Clone)]
+pub enum CredentialAuth {
+    Ssh(String),
+    Https(String, String),
+}
+
 pub struct CredentialHandler {
     username_attempts_count: usize,
     username_candidates: Vec<String>,
     ssh_attempts_count: usize,
     ssh_key_candidates: Vec<std::path::PathBuf>,
+    https_credentials: Option<(String, String)>,
     cred_helper_bad: Option<bool>,
     cfg: git2::Config,
 }
@@ -21,22 +28,39 @@ pub struct CredentialHandler {
 // License APACHE
 // but adapted to not use wrapper over function like withXxx(FnMut), a more OO approach
 impl CredentialHandler {
-    pub fn new(cfg: git2::Config) -> Self {
+    pub fn new(cfg: git2::Config, auth: Option<CredentialAuth>) -> Self {
+        // Force using https credentials if given
+        if let Some(CredentialAuth::Https(username, password)) = auth {
+            return CredentialHandler {
+                username_attempts_count: 0,
+                username_candidates: vec!["git".to_string()],
+                ssh_attempts_count: 0,
+                ssh_key_candidates: vec![],
+                cred_helper_bad: None,
+                https_credentials: Some((username, password)),
+                cfg,
+            };
+        }
+
         // Generate a list of available keys
-        // TODO: Add custom ssh key paths
-        let home = home_dir().unwrap_or(PathBuf::from("~"));
-        let ssh_key_candidates: Vec<PathBuf> = vec![
-            ".ssh/id_dsa",
-            ".ssh/id_ecdsa",
-            ".ssh/id_ecdsa_sk",
-            ".ssh/id_ed25519",
-            ".ssh/id_ed25519_sk",
-            ".ssh/id_rsa",
-        ]
-        .into_iter()
-        .map(|key_path| home.join(key_path))
-        .filter(|key_path| key_path.exists())
-        .collect();
+        let ssh_keys = if let Some(CredentialAuth::Ssh(path)) = auth {
+            vec![PathBuf::from(path)]
+        } else {
+            let home = home_dir().unwrap_or(PathBuf::from("~"));
+            vec![
+                home.join(".ssh/id_dsa"),
+                home.join(".ssh/id_ecdsa"),
+                home.join(".ssh/id_ecdsa_sk"),
+                home.join(".ssh/id_ed25519"),
+                home.join(".ssh/id_ed25519_sk"),
+                home.join(".ssh/id_rsa"),
+            ]
+        };
+
+        let ssh_key_candidates: Vec<PathBuf> = ssh_keys
+            .into_iter()
+            .filter(|key_path| key_path.exists())
+            .collect();
 
         CredentialHandler {
             username_attempts_count: 0,
@@ -44,6 +68,7 @@ impl CredentialHandler {
             ssh_attempts_count: 0,
             ssh_key_candidates,
             cred_helper_bad: None,
+            https_credentials: None,
             cfg,
         }
     }
@@ -161,9 +186,13 @@ impl CredentialHandler {
         if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT)
             && self.cred_helper_bad.is_none()
         {
-            trace!("Trying username-password authentication.");
+            if let Some((username, password)) = &self.https_credentials {
+                trace!("Trying username-password from command line argument {username}.");
+                return git2::Cred::userpass_plaintext(username, password);
+            }
+
+            trace!("Trying username-password authentication from credential helper.");
             let r = git2::Cred::credential_helper(&self.cfg, url, username);
-            // TODO: Add username-password from parameters
             self.cred_helper_bad = Some(r.is_err());
             return r;
         }

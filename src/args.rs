@@ -36,9 +36,6 @@ pub struct Args {
     pub once: bool,
 
     /// The trigger on which to run.
-    ///
-    /// Can be either "push" to trigger on every change (default)
-    /// or "tag:regex" to trigger on every tag matching a regex.
     #[options(default = "push")]
     pub trigger: Trigger,
 
@@ -48,11 +45,23 @@ pub struct Args {
     #[options(long = "every", default = "1m")]
     pub delay: DurationString,
 
+    /// Set the path for an ssh-key to be used when pulling.
+    #[options(short = 'i', long = "ssh-key")]
+    pub ssh_key: Option<String>,
+
+    /// Set the username for git to be used when pulling.
+    #[options(no_short, meta = "USER")]
+    pub git_username: Option<String>,
+
+    /// Set the password or token for git to be used when pulling.
+    #[options(no_short, meta = "PASS")]
+    pub git_password: Option<String>,
+
     /// Runs an HTTP server on the URL, which allows to trigger by calling it.
     #[options(no_short)]
     pub http: Option<String>,
 
-    /// Increase verbosity, can be set multiple times (-v debug, -vv tracing)
+    /// Increase verbosity, can be set multiple times (-v debug, -vv tracing).
     #[options(count)]
     pub verbose: u8,
 
