@@ -11,7 +11,7 @@
 - Add `--quiet` flag to improve logging
 - Add signal handling to handle SIGINT and SIGTERM
 - Add `--ssh-key` flag to change the ssh-key path
-- Add `--git-username` and `--git-password` flags to change the https authentication
+- Add `--git-username` and `--git-token` flags to change the https authentication
 
 ### Changed
 

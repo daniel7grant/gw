@@ -49,13 +49,13 @@ pub struct Args {
     #[options(short = 'i', long = "ssh-key")]
     pub ssh_key: Option<String>,
 
-    /// Set the username for git to be used when pulling.
+    /// Set the username for git to be used when pulling with HTTPS.
     #[options(no_short, meta = "USER")]
     pub git_username: Option<String>,
 
-    /// Set the password or token for git to be used when pulling.
-    #[options(no_short, meta = "PASS")]
-    pub git_password: Option<String>,
+    /// Set the token for git to be used when pulling with HTTPS.
+    #[options(no_short, meta = "TOKEN")]
+    pub git_token: Option<String>,
 
     /// Runs an HTTP server on the URL, which allows to trigger by calling it.
     #[options(no_short)]

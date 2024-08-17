@@ -79,7 +79,7 @@ fn main_inner() -> Result<(), MainError> {
     if let Some(ssh_key) = args.ssh_key {
         git_check.set_auth(CredentialAuth::Ssh(ssh_key));
     }
-    if let (Some(username), Some(password)) = (args.git_username, args.git_password) {
+    if let (Some(username), Some(password)) = (args.git_username, args.git_token) {
         git_check.set_auth(CredentialAuth::Https(username, password));
     }
     let mut check: Box<dyn Check> = Box::new(git_check);

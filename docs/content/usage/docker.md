@@ -36,7 +36,13 @@ services:
       - type: volume
         source: /path/to/repo
         target: /app
+      - type: volume
+        source: ~/.ssh
+        target: /root/.ssh
+        read_only: true
 ```
+
+If you are using ssh-keys, mount the `.ssh` directory as well, so it can pull. For more information, see [Authentication](/reference/authentication).
 
 ## Customization
 
