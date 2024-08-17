@@ -15,7 +15,9 @@ mod args;
 #[derive(Debug, Error)]
 pub enum MainError {
     #[error("You have to pass a directory to watch.")]
-    MissingDirectory,
+    MissingDirectoryArg,
+    #[error("Directory {0} not found.")]
+    NonExistentDirectory(String),
     #[error("Check failed: {0}.")]
     FailedCheck(#[from] CheckError),
     #[error("Failed setting up logger.")]
@@ -43,12 +45,12 @@ fn main_inner() -> Result<(), MainError> {
         .init()?;
 
     // Check if directory exists and convert to full path
-    let directory_relative = args.directory.ok_or(MainError::MissingDirectory)?;
-    let directory_path =
-        fs::canonicalize(directory_relative).map_err(|_| MainError::MissingDirectory)?;
+    let directory_relative = args.directory.ok_or(MainError::MissingDirectoryArg)?;
+    let directory_path = fs::canonicalize(directory_relative.clone())
+        .map_err(|_| MainError::NonExistentDirectory(directory_relative.clone()))?;
     let directory = directory_path
         .to_str()
-        .ok_or(MainError::MissingDirectory)?
+        .ok_or(MainError::NonExistentDirectory(directory_relative))?
         .to_string();
 
     // Setup triggers.

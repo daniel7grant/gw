@@ -45,7 +45,11 @@ impl GitRepository {
         let repo = Repository::open(directory)
             .map_err(|_| GitError::NotAGitRepository(String::from(directory)))?;
 
-        Ok(GitRepository { repo })
+        // Do a sanity check to fail instantly if there are any issues
+        let git_repo = GitRepository { repo };
+        git_repo.get_repository_information()?;
+
+        Ok(git_repo)
     }
 
     /// Get information about the current repository, for context and usage in GitRepository
@@ -118,12 +122,7 @@ impl GitRepository {
         let git_config = Config::open_default().map_err(|_| GitError::ConfigLoadingFailed)?;
         let mut ch = CredentialHandler::new(git_config);
         cb.credentials(move |url, username, allowed| {
-            trace!("Trying credential {username:?} for {url}.");
-            let try_cred = ch.try_next_credential(url, username, allowed);
-            if try_cred.is_err() {
-                debug!("Cannot authenticate with {url}.");
-            }
-            try_cred
+            ch.try_next_credential(url, username, allowed)
         });
 
         // Set option to download tags automatically
@@ -134,14 +133,14 @@ impl GitRepository {
         // Fetch the remote state
         remote
             .fetch(&[branch_name], Some(&mut opts), None)
-            .map_err(|err| GitError::FetchFailed(err.to_string()))?;
+            .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
 
         let fetch_head = repo
             .find_reference("FETCH_HEAD")
-            .map_err(|err| GitError::FetchFailed(err.to_string()))?;
+            .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
         let fetch_commit = repo
             .reference_to_annotated_commit(&fetch_head)
-            .map_err(|err| GitError::FetchFailed(err.to_string()))?;
+            .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
 
         trace!(
             "Fetched successfully to {}.",

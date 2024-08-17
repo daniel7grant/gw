@@ -19,17 +19,17 @@ pub struct GitCheck(pub GitRepository);
 #[derive(Debug, Error)]
 pub enum GitError {
     /// The directory is not a valid git repository.
-    #[error("{0} does not exist or not a git repository")]
+    #[error("{0} is not a valid git repository")]
     NotAGitRepository(String),
     /// Cannot parse HEAD, either stuck an unborn branch or some deleted reference
     #[error("HEAD is invalid, probably points to invalid commit")]
     NoHead,
     /// There is no branch in the repository currently. It can be a repository
     /// without any branch, or checked out on a commit.
-    #[error("repository is not on a branch")]
+    #[error("repository is not on a branch, checkout or create a commit first")]
     NotOnABranch,
     /// There is no remote for the current branch. This usually because the branch hasn't been pulled.
-    #[error("branch {0} doesn't have a remote")]
+    #[error("branch {0} doesn't have a remote, push your commits first")]
     NoRemoteForBranch(String),
     /// There are changes in the directory, avoiding pulling. This is a safety mechanism to avoid pulling
     /// over local changes, to not overwrite anything important.
@@ -39,7 +39,7 @@ pub enum GitError {
     #[error("cannot load git config")]
     ConfigLoadingFailed,
     /// Cannot fetch the current branch. This can be a network failure, authentication error or many other things.
-    #[error("cannot fetch: {0}")]
+    #[error("cannot fetch ({0})")]
     FetchFailed(String),
     /// Cannot pull updates to the current branch. This means either the merge analysis failed
     /// or there is a merge conflict.

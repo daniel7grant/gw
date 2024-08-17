@@ -46,7 +46,7 @@ pub fn start(
     thread::spawn(move || {
         if let Ok(mut signals) = SignalsInfo::<SignalOnly>::new(TERM_SIGNALS) {
             for signal in signals.forever() {
-                info!("Got signal {signal}, terminating after all actions finished.");
+                debug!("Got signal {signal}, terminating after all actions finished.");
                 if tx.send(None).is_err() {
                     error!("Failed terminating the application with signal {signal}.");
                 }

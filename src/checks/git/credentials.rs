@@ -1,9 +1,9 @@
 // Credential funtion graciously lifted from https://github.com/davidB/git2_credentials
 // The goal is to remove every extra feature (e.g. interactive usage, config parsing with pest)
 
-use std::path::PathBuf;
-
 use dirs::home_dir;
+use log::{trace, warn};
+use std::path::PathBuf;
 
 pub use git2;
 
@@ -33,10 +33,10 @@ impl CredentialHandler {
             ".ssh/id_ed25519_sk",
             ".ssh/id_rsa",
         ]
-            .into_iter()
-            .map(|key_path| home.join(key_path))
-            .filter(|key_path| key_path.exists())
-            .collect();
+        .into_iter()
+        .map(|key_path| home.join(key_path))
+        .filter(|key_path| key_path.exists())
+        .collect();
 
         CredentialHandler {
             username_attempts_count: 0,
@@ -125,6 +125,7 @@ impl CredentialHandler {
             self.ssh_attempts_count += 1;
             let u = username.unwrap_or("git");
             return if self.ssh_attempts_count == 1 {
+                trace!("Trying ssh-key from agent with username {u}.");
                 git2::Cred::ssh_key_from_agent(u)
             } else {
                 let candidate_idx = self.ssh_attempts_count - 2;
@@ -132,13 +133,21 @@ impl CredentialHandler {
                     let key = self.ssh_key_candidates.get(candidate_idx);
                     match key {
                         // try without passphrase
-                        Some(k) => git2::Cred::ssh_key(u, None, k, None),
+                        Some(k) => {
+                            trace!("Trying ssh-key {} without passphrase.", k.to_string_lossy());
+                            git2::Cred::ssh_key(u, None, k, None)
+                        }
                         None => Err(git2::Error::from_str(
-                            "failed authentication for repository",
+                            "failed ssh authentication for repository",
                         )),
                     }
                 } else {
-                    Err(git2::Error::from_str("try with an other username"))
+                    if self.ssh_key_candidates.is_empty() {
+                        warn!("There are no ssh-keys in ~/.ssh, run ssh-keygen or mount your .ssh directory.");
+                    }
+                    Err(git2::Error::from_str(
+                        "no ssh-key found that can authenticate to your repository",
+                    ))
                 }
             };
         }
@@ -152,6 +161,7 @@ impl CredentialHandler {
         if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT)
             && self.cred_helper_bad.is_none()
         {
+            trace!("Trying username-password authentication.");
             let r = git2::Cred::credential_helper(&self.cfg, url, username);
             // TODO: Add username-password from parameters
             self.cred_helper_bad = Some(r.is_err());
@@ -165,6 +175,7 @@ impl CredentialHandler {
         }
 
         // Stop trying
+        trace!("There are not authentication available.");
         Err(git2::Error::from_str("no valid authentication available"))
     }
 }
