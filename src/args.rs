@@ -5,23 +5,15 @@ use std::str::FromStr;
 #[derive(Clone, Debug)]
 pub enum Trigger {
     Push,
-    Tag(String),
 }
 
 impl FromStr for Trigger {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Some((trigger_name, value)) = s.split_once(':') {
-            match trigger_name {
-                "tag" => Ok(Trigger::Tag(String::from(value))),
-                s => Err(format!("cannot parse {s}, valid values: push, tag:regex")),
-            }
-        } else {
-            match s {
-                "push" => Ok(Trigger::Push),
-                s => Err(format!("cannot parse {s}, valid values: push, tag:regex")),
-            }
+        match s {
+            "push" => Ok(Trigger::Push),
+            s => Err(format!("cannot parse {s}, valid values: push")),
         }
     }
 }
