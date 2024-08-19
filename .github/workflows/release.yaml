@@ -31,7 +31,7 @@ jobs:
             target/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install musl-tools for Musl install
-        run: apt-get update && apt-get install musl-tools -y
+        run: sudo apt-get install musl-tools -y
       - name: Build for Linux
         uses: actions-rs/cargo@v1
         with:
