@@ -57,6 +57,10 @@ pub struct Args {
     #[options(no_short, meta = "TOKEN")]
     pub git_token: Option<String>,
 
+    /// Add this line to the known_hosts file to be created (e.g. "example.com ssh-ed25519 AAAAC3...").
+    #[options(no_short, meta = "HOST")]
+    pub git_known_host: Option<String>,
+
     /// Runs an HTTP server on the URL, which allows to trigger by calling it.
     #[options(no_short)]
     pub http: Option<String>,

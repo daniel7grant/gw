@@ -6,8 +6,10 @@ use thiserror::Error;
 
 mod credentials;
 mod repository;
+mod known_hosts;
 
 pub use credentials::CredentialAuth;
+use known_hosts::setup_known_hosts;
 
 const CHECK_NAME: &str = "GIT";
 
@@ -40,6 +42,9 @@ pub enum GitError {
     /// Cannot load the git config
     #[error("cannot load git config")]
     ConfigLoadingFailed,
+    /// Cannot create the ssh config
+    #[error("cannot create ssh config")]
+    SshConfigFailed,
     /// Cannot fetch the current branch. This can be a network failure, authentication error or many other things.
     #[error("cannot fetch ({0})")]
     FetchFailed(String),
@@ -59,7 +64,9 @@ impl From<GitError> for CheckError {
             | GitError::NoHead
             | GitError::NotOnABranch
             | GitError::NoRemoteForBranch(_) => CheckError::Misconfigured(value.to_string()),
-            GitError::ConfigLoadingFailed => CheckError::PermissionDenied(value.to_string()),
+            GitError::ConfigLoadingFailed | GitError::SshConfigFailed => {
+                CheckError::PermissionDenied(value.to_string())
+            }
             GitError::DirtyWorkingTree | GitError::MergeConflict => {
                 CheckError::Conflict(value.to_string())
             }
@@ -79,6 +86,12 @@ impl GitCheck {
 
     pub fn set_auth(&mut self, auth: CredentialAuth) {
         self.0.set_auth(auth);
+    }
+
+    pub fn set_known_host(&self, additional_host: Option<String>) -> Result<(), CheckError> {
+        setup_known_hosts(additional_host)?;
+
+        Ok(())
     }
 
     fn check_inner(&mut self, context: &mut Context) -> Result<bool, GitError> {

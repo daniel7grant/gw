@@ -76,6 +76,7 @@ fn main_inner() -> Result<(), MainError> {
     // Setup check.
     debug!("Setting up directory {directory} for GitCheck.");
     let mut git_check = GitCheck::open(&directory)?;
+    git_check.set_known_host(args.git_known_host)?;
     if let Some(ssh_key) = args.ssh_key {
         git_check.set_auth(CredentialAuth::Ssh(ssh_key));
     }
