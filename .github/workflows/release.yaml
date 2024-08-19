@@ -68,8 +68,8 @@ jobs:
           files: |
             target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.tar.gz
             target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.zip
-            target/x86_64-unknown-linux-musl/gw-bin_x86_64-unknown-linux-musl.tar.gz
-            target/x86_64-unknown-linux-musl/gw-bin_x86_64-unknown-linux-musl.zip
+            target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.tar.gz
+            target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.zip
           # target/x86_64-pc-windows-gnu/release/gw-bin_x86_64-pc-windows-gnu.zip
       - uses: katyo/publish-crates@v2
         with:
