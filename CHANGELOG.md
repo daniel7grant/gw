@@ -14,6 +14,7 @@
 - Add `--git-username` and `--git-token` flags to change the https authentication
 - Generate `.ssh/known_hosts` file if there is none found on the system
 - Add `--git-known-host` to add an entry to the `.ssh/known_hosts` file
+- Add installation script
 
 ### Changed
 

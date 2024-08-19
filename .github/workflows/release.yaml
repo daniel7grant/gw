@@ -19,6 +19,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          target: x86_64-unknown-linux-musl
       - name: Restore cached dependencies
         uses: actions/cache@v3
         with:
@@ -34,6 +35,11 @@ jobs:
         with:
           command: build
           args: --release --target x86_64-unknown-linux-gnu
+      - name: Build for Musl
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-unknown-linux-musl
       - name: Build for Windows
         uses: actions-rs/cargo@v1
         with:
@@ -51,6 +57,8 @@ jobs:
         run: |
           cd target/x86_64-unknown-linux-gnu/release && tar czf gw-bin_x86_64-unknown-linux-gnu.tar.gz gw && cd -
           cd target/x86_64-unknown-linux-gnu/release && zip gw-bin_x86_64-unknown-linux-gnu.zip gw && cd -
+          cd target/x86_64-unknown-linux-musl/release && tar czf gw-bin_x86_64-unknown-linux-musl.tar.gz gw && cd -
+          cd target/x86_64-unknown-linux-musl/release && zip gw-bin_x86_64-unknown-linux-musl.zip gw && cd -
           cd target/x86_64-pc-windows-gnu/release && zip gw-bin_x86_64-pc-windows-gnu.zip gw.exe && cd -
       - name: Release on tags
         uses: softprops/action-gh-release@v1
@@ -58,6 +66,8 @@ jobs:
           files: |
             target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.tar.gz
             target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.zip
+            target/x86_64-unknown-linux-musl/gw-bin_x86_64-unknown-linux-musl.tar.gz
+            target/x86_64-unknown-linux-musl/gw-bin_x86_64-unknown-linux-musl.zip
             target/x86_64-pc-windows-gnu/release/gw-bin_x86_64-pc-windows-gnu.zip
       - uses: katyo/publish-crates@v2
         with:
