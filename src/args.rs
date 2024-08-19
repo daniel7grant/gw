@@ -5,23 +5,15 @@ use std::str::FromStr;
 #[derive(Clone, Debug)]
 pub enum Trigger {
     Push,
-    Tag(String),
 }
 
 impl FromStr for Trigger {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Some((trigger_name, value)) = s.split_once(':') {
-            match trigger_name {
-                "tag" => Ok(Trigger::Tag(String::from(value))),
-                s => Err(format!("cannot parse {s}, valid values: push, tag:regex")),
-            }
-        } else {
-            match s {
-                "push" => Ok(Trigger::Push),
-                s => Err(format!("cannot parse {s}, valid values: push, tag:regex")),
-            }
+        match s {
+            "push" => Ok(Trigger::Push),
+            s => Err(format!("cannot parse {s}, valid values: push")),
         }
     }
 }
@@ -44,9 +36,6 @@ pub struct Args {
     pub once: bool,
 
     /// The trigger on which to run.
-    ///
-    /// Can be either "push" to trigger on every change (default)
-    /// or "tag:regex" to trigger on every tag matching a regex.
     #[options(default = "push")]
     pub trigger: Trigger,
 
@@ -56,11 +45,27 @@ pub struct Args {
     #[options(long = "every", default = "1m")]
     pub delay: DurationString,
 
+    /// Set the path for an ssh-key to be used when pulling.
+    #[options(short = 'i', long = "ssh-key")]
+    pub ssh_key: Option<String>,
+
+    /// Set the username for git to be used when pulling with HTTPS.
+    #[options(no_short, meta = "USER")]
+    pub git_username: Option<String>,
+
+    /// Set the token for git to be used when pulling with HTTPS.
+    #[options(no_short, meta = "TOKEN")]
+    pub git_token: Option<String>,
+
+    /// Add this line to the known_hosts file to be created (e.g. "example.com ssh-ed25519 AAAAC3...").
+    #[options(no_short, meta = "HOST")]
+    pub git_known_host: Option<String>,
+
     /// Runs an HTTP server on the URL, which allows to trigger by calling it.
     #[options(no_short)]
     pub http: Option<String>,
 
-    /// Increase verbosity, can be set multiple times (-v debug, -vv tracing)
+    /// Increase verbosity, can be set multiple times (-v debug, -vv tracing).
     #[options(count)]
     pub verbose: u8,
 

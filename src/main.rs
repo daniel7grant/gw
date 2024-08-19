@@ -1,7 +1,10 @@
 use args::parse_args;
 use gw_bin::{
     actions::{script::ScriptAction, Action},
-    checks::{git::GitCheck, Check, CheckError},
+    checks::{
+        git::{CredentialAuth, GitCheck},
+        Check, CheckError,
+    },
     start::{start, StartError},
     triggers::{http::HttpTrigger, once::OnceTrigger, schedule::ScheduleTrigger, Trigger},
 };
@@ -15,7 +18,9 @@ mod args;
 #[derive(Debug, Error)]
 pub enum MainError {
     #[error("You have to pass a directory to watch.")]
-    MissingDirectory,
+    MissingDirectoryArg,
+    #[error("Directory {0} not found.")]
+    NonExistentDirectory(String),
     #[error("Check failed: {0}.")]
     FailedCheck(#[from] CheckError),
     #[error("Failed setting up logger.")]
@@ -43,12 +48,12 @@ fn main_inner() -> Result<(), MainError> {
         .init()?;
 
     // Check if directory exists and convert to full path
-    let directory_relative = args.directory.ok_or(MainError::MissingDirectory)?;
-    let directory_path =
-        fs::canonicalize(directory_relative).map_err(|_| MainError::MissingDirectory)?;
+    let directory_relative = args.directory.ok_or(MainError::MissingDirectoryArg)?;
+    let directory_path = fs::canonicalize(directory_relative.clone())
+        .map_err(|_| MainError::NonExistentDirectory(directory_relative.clone()))?;
     let directory = directory_path
         .to_str()
-        .ok_or(MainError::MissingDirectory)?
+        .ok_or(MainError::NonExistentDirectory(directory_relative))?
         .to_string();
 
     // Setup triggers.
@@ -70,7 +75,15 @@ fn main_inner() -> Result<(), MainError> {
 
     // Setup check.
     debug!("Setting up directory {directory} for GitCheck.");
-    let mut check: Box<dyn Check> = Box::new(GitCheck::open(&directory)?);
+    let mut git_check = GitCheck::open(&directory)?;
+    git_check.set_known_host(args.git_known_host)?;
+    if let Some(ssh_key) = args.ssh_key {
+        git_check.set_auth(CredentialAuth::Ssh(ssh_key));
+    }
+    if let (Some(username), Some(password)) = (args.git_username, args.git_token) {
+        git_check.set_auth(CredentialAuth::Https(username, password));
+    }
+    let mut check: Box<dyn Check> = Box::new(git_check);
 
     // Setup actions.
     let mut actions: Vec<Box<dyn Action>> = vec![];

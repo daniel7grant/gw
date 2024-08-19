@@ -1,4 +1,7 @@
-use super::{credentials::CredentialHandler, GitError};
+use super::{
+    credentials::{CredentialAuth, CredentialHandler},
+    GitError,
+};
 use git2::{
     AnnotatedCommit, AutotagOption, Config, FetchOptions, RemoteCallbacks, Repository,
     StatusOptions,
@@ -24,10 +27,11 @@ pub enum GitRepositoryInformation {
 }
 
 /// A directory that is opened as a git repository.
-/// 
+///
 /// It is a wrapper around the underlying `git2` [Repository](git2::Repository).
 pub struct GitRepository {
     repo: Repository,
+    auth: Option<CredentialAuth>,
 }
 
 /// Return the 7 characters short hash version for a commit SHA
@@ -36,12 +40,24 @@ pub fn shorthash(sha: &str) -> String {
 }
 
 impl GitRepository {
-    /// Open a directory as a GitRepository. Fails if the directory, is not a valid git repo.
+    /// Open a directory as a GitRepository. Fails if the directory is not a valid git repo.
     pub fn open(directory: &str) -> Result<Self, GitError> {
+        let mut cfg = Config::open_default().map_err(|_| GitError::ConfigLoadingFailed)?;
+        cfg.set_str("safe.directory", directory)
+            .map_err(|_| GitError::ConfigLoadingFailed)?;
+
         let repo = Repository::open(directory)
             .map_err(|_| GitError::NotAGitRepository(String::from(directory)))?;
 
-        Ok(GitRepository { repo })
+        // Do a sanity check to fail instantly if there are any issues
+        let git_repo = GitRepository { repo, auth: None };
+        git_repo.get_repository_information()?;
+
+        Ok(git_repo)
+    }
+
+    pub fn set_auth(&mut self, auth: CredentialAuth) {
+        self.auth = Some(auth);
     }
 
     /// Get information about the current repository, for context and usage in GitRepository
@@ -112,14 +128,9 @@ impl GitRepository {
         // Setup authentication callbacks to fetch the repository
         let mut cb = RemoteCallbacks::new();
         let git_config = Config::open_default().map_err(|_| GitError::ConfigLoadingFailed)?;
-        let mut ch = CredentialHandler::new(git_config);
+        let mut ch = CredentialHandler::new(git_config, self.auth.clone());
         cb.credentials(move |url, username, allowed| {
-            trace!("Trying credential {username:?} for {url}.");
-            let try_cred = ch.try_next_credential(url, username, allowed);
-            if try_cred.is_err() {
-                debug!("Cannot authenticate with {url}.");
-            }
-            try_cred
+            ch.try_next_credential(url, username, allowed)
         });
 
         // Set option to download tags automatically
@@ -130,14 +141,14 @@ impl GitRepository {
         // Fetch the remote state
         remote
             .fetch(&[branch_name], Some(&mut opts), None)
-            .map_err(|_| GitError::FetchFailed)?;
+            .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
 
         let fetch_head = repo
             .find_reference("FETCH_HEAD")
-            .map_err(|_| GitError::FetchFailed)?;
+            .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
         let fetch_commit = repo
             .reference_to_annotated_commit(&fetch_head)
-            .map_err(|_| GitError::FetchFailed)?;
+            .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
 
         trace!(
             "Fetched successfully to {}.",

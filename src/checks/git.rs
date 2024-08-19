@@ -6,6 +6,10 @@ use thiserror::Error;
 
 mod credentials;
 mod repository;
+mod known_hosts;
+
+pub use credentials::CredentialAuth;
+use known_hosts::setup_known_hosts;
 
 const CHECK_NAME: &str = "GIT";
 
@@ -19,17 +23,17 @@ pub struct GitCheck(pub GitRepository);
 #[derive(Debug, Error)]
 pub enum GitError {
     /// The directory is not a valid git repository.
-    #[error("{0} does not exist or not a git repository")]
+    #[error("{0} is not a valid git repository")]
     NotAGitRepository(String),
     /// Cannot parse HEAD, either stuck an unborn branch or some deleted reference
     #[error("HEAD is invalid, probably points to invalid commit")]
     NoHead,
     /// There is no branch in the repository currently. It can be a repository
     /// without any branch, or checked out on a commit.
-    #[error("repository is not on a branch")]
+    #[error("repository is not on a branch, checkout or create a commit first")]
     NotOnABranch,
     /// There is no remote for the current branch. This usually because the branch hasn't been pulled.
-    #[error("branch {0} doesn't have a remote")]
+    #[error("branch {0} doesn't have a remote, push your commits first")]
     NoRemoteForBranch(String),
     /// There are changes in the directory, avoiding pulling. This is a safety mechanism to avoid pulling
     /// over local changes, to not overwrite anything important.
@@ -38,9 +42,12 @@ pub enum GitError {
     /// Cannot load the git config
     #[error("cannot load git config")]
     ConfigLoadingFailed,
-    /// Cannot fetch the current branch. This is possibly a network failure.
-    #[error("cannot fetch, might be a network error")]
-    FetchFailed,
+    /// Cannot create the ssh config
+    #[error("cannot create ssh config")]
+    SshConfigFailed,
+    /// Cannot fetch the current branch. This can be a network failure, authentication error or many other things.
+    #[error("cannot fetch ({0})")]
+    FetchFailed(String),
     /// Cannot pull updates to the current branch. This means either the merge analysis failed
     /// or there is a merge conflict.
     #[error("cannot update branch, this is likely a merge conflict")]
@@ -57,11 +64,13 @@ impl From<GitError> for CheckError {
             | GitError::NoHead
             | GitError::NotOnABranch
             | GitError::NoRemoteForBranch(_) => CheckError::Misconfigured(value.to_string()),
-            GitError::ConfigLoadingFailed => CheckError::PermissionDenied(value.to_string()),
+            GitError::ConfigLoadingFailed | GitError::SshConfigFailed => {
+                CheckError::PermissionDenied(value.to_string())
+            }
             GitError::DirtyWorkingTree | GitError::MergeConflict => {
                 CheckError::Conflict(value.to_string())
             }
-            GitError::FetchFailed | GitError::FailedSettingHead(_) => {
+            GitError::FetchFailed(_) | GitError::FailedSettingHead(_) => {
                 CheckError::FailedUpdate(value.to_string())
             }
         }
@@ -73,6 +82,16 @@ impl GitCheck {
     pub fn open(directory: &str) -> Result<Self, CheckError> {
         let repo = GitRepository::open(directory)?;
         Ok(GitCheck(repo))
+    }
+
+    pub fn set_auth(&mut self, auth: CredentialAuth) {
+        self.0.set_auth(auth);
+    }
+
+    pub fn set_known_host(&self, additional_host: Option<String>) -> Result<(), CheckError> {
+        setup_known_hosts(additional_host)?;
+
+        Ok(())
     }
 
     fn check_inner(&mut self, context: &mut Context) -> Result<bool, GitError> {
@@ -274,13 +293,12 @@ mod tests {
         // Don't create commit to create an empty repository
         create_failing_repository(&local, false)?;
 
-        let mut check: GitCheck = GitCheck::open(&local)?;
-        let mut context: Context = HashMap::new();
-        let error = check.check_inner(&mut context).err().unwrap();
+        let failing_check = GitCheck::open(&local);
+        let error = failing_check.err().unwrap();
 
         assert!(
-            matches!(error, GitError::NotOnABranch),
-            "{error:?} should be NotOnABranch"
+            matches!(error, CheckError::Misconfigured(_)),
+            "{error:?} should be Misconfigured"
         );
 
         cleanup_repository(&local)?;
@@ -296,13 +314,12 @@ mod tests {
         // Don't create commit to create an empty repository
         create_failing_repository(&local, true)?;
 
-        let mut check: GitCheck = GitCheck::open(&local)?;
-        let mut context: Context = HashMap::new();
-        let error = check.check_inner(&mut context).err().unwrap();
+        let failing_check = GitCheck::open(&local);
+        let error = failing_check.err().unwrap();
 
         assert!(
-            matches!(error, GitError::NoRemoteForBranch(_)),
-            "{error:?} should be NoRemoteForBranch"
+            matches!(error, CheckError::Misconfigured(_)),
+            "{error:?} should be Misconfigured"
         );
 
         cleanup_repository(&local)?;
