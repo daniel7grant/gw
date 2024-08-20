@@ -23,6 +23,9 @@ tiny_http = "0.12.0"
 [target.'cfg(target_env = "musl")'.dependencies]
 git2 = { version = "0.18.1", features = ["vendored-libgit2", "vendored-openssl"] }
 
+[target.arm-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"
+
 [dev-dependencies]
 duct = "0.13.7"
 rand = "0.8.5"
