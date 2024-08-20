@@ -35,7 +35,7 @@ jobs:
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Add new apt sources that support armhf
         run: |
-          cat > /etc/apt/sources.list << EOF
+          sudo tee /etc/apt/sources.list << EOF
           deb [arch=armhf,arm64] http://ports.ubuntu.com/ jammy main restricted
           deb [arch=armhf,arm64] http://ports.ubuntu.com/ jammy-updates main restricted
           deb [arch=armhf,arm64] http://ports.ubuntu.com/ jammy universe
