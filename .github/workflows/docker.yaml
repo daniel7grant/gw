@@ -2,8 +2,8 @@ name: Docker build
 
 on:
   push:
-    # tags:
-    #   - "v*"
+    tags:
+      - "v*"
 
 jobs:
   release:
@@ -35,16 +35,15 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           file: ./Dockerfile
-        #   push: true
-          push: false
+          push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=danielgrant/gw:latest
           cache-to: type=inline
-    #   - name: Update repo description
-    #     uses: peter-evans/dockerhub-description@v4
-    #     with:
-    #       username: ${{ secrets.DOCKERHUB_USERNAME }}
-    #       password: ${{ secrets.DOCKERHUB_PASSWORD }}
-    #       repository: danielgrant/gw
+      - name: Update repo description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          repository: danielgrant/gw

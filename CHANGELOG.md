@@ -4,8 +4,9 @@
 
 ### Added
 
-- Add support for Linux ARM machines
-- Add support for MacOS ARM machines
+- Support cross-compilation for Linux ARM machines
+- Support compilation for MacOS ARM machines
+- Support multi-platform Docker images
 - Add Changelog to releases automatically
 
 ### Changed
