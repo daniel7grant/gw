@@ -9,23 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  release_mac:
-    name: Release for MacOS
-    runs-on: macos-latest
-    steps:
-      - name: Checkout the tag
-        uses: actions/checkout@v3
-      - name: Add toolchain for Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - name: Build for Linux
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target aarch64-apple-darwin
   release:
-    name: Release for everything else
+    name: Create GitHub release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the tag
@@ -34,8 +19,164 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Install target for Musl
-        run: rustup target add --toolchain stable x86_64-unknown-linux-musl
+      - name: Restore cached dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+      # - name: Release for tags
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     files: |
+      #       target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.tar.gz
+      #       target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.zip
+      #       target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.tar.gz
+      #       target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.zip
+      #       target/arm-unknown-linux-gnueabihf/release/gw-bin_arm-unknown-linux-gnueabihf.tar.gz
+      #       target/arm-unknown-linux-gnueabihf/release/gw-bin_arm-unknown-linux-gnueabihf.zip
+      #       target/x86_64-pc-windows-gnu/release/gw-bin_x86_64-pc-windows-gnu.zip
+      # - uses: katyo/publish-crates@v2
+      #   with:
+      #     registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      #     ignore-unpublished-changes: true
+
+  release_linux:
+    name: Release for Linux
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v3
+      - name: Add toolchain for Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Restore cached dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: cargo-linux-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build for Linux
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-unknown-linux-gnu
+      - name: Convert binaries into compressed files
+        run: |
+          cd target/x86_64-unknown-linux-gnu/release && tar czf gw-bin_x86_64-unknown-linux-gnu.tar.gz gw && cd -
+          cd target/x86_64-unknown-linux-gnu/release && zip gw-bin_x86_64-unknown-linux-gnu.zip gw && cd -
+      # - name: Upload zip to release
+      #   uses: svenstaro/upload-release-action@v2
+      #   with:
+      #     file: target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.zip
+      #     asset_name: gw-bin_x86_64-unknown-linux-gnu.zip
+      # - name: Upload tar.gz to release
+      #   uses: svenstaro/upload-release-action@v2
+      #   with:
+      #     file: target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.tar.gz
+      #     asset_name: gw-bin_x86_64-unknown-linux-gnu.tar.gz
+  
+  release_musl:
+    name: Release for Musl
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v3
+      - name: Add toolchain for Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Restore cached dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: cargo-musl-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install MUSL dependencies
+        run: sudo apt-get install musl-tools --no-install-recommends -y
+      - name: Build for Musl
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-unknown-linux-musl
+      - name: Convert binaries into compressed files
+        run: |
+          cd target/x86_64-unknown-linux-musl/release && tar czf gw-bin_x86_64-unknown-linux-musl.tar.gz gw && cd -
+          cd target/x86_64-unknown-linux-musl/release && zip gw-bin_x86_64-unknown-linux-musl.zip gw && cd -
+      # - name: Upload zip to release
+      #   uses: svenstaro/upload-release-action@v2
+      #   with:
+      #     file: target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.zip
+      #     asset_name: gw-bin_x86_64-unknown-linux-musl.zip
+      # - name: Upload tar.gz to release
+      #   uses: svenstaro/upload-release-action@v2
+      #   with:
+      #     file: target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.tar.gz
+      #     asset_name: gw-bin_x86_64-unknown-linux-musl.tar.gz
+  
+  release_windows:
+    name: Release for Windows
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v3
+      - name: Add toolchain for Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Restore cached dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: cargo-windows-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build for Windows
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-pc-windows-gnu
+          use-cross: true
+      - name: Convert binaries into compressed files
+        run: |
+          cd target/x86_64-pc-windows-gnu/release && zip gw-bin_x86_64-pc-windows-gnu.zip gw.exe && cd -
+      # - name: Upload zip to release
+      #   uses: svenstaro/upload-release-action@v2
+      #   with:
+      #     file: target/x86_64-pc-windows-gnu/release/gw-bin_x86_64-pc-windows-gnu.zip
+      #     asset_name: gw-bin_x86_64-pc-windows-gnu.zip
+  
+  
+  release_arm:
+    name: Release for ARM
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v3
+      - name: Add toolchain for Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: Install target for ARM
         run: rustup target add --toolchain stable arm-unknown-linux-gnueabihf
       - name: Restore cached dependencies
@@ -47,7 +188,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: cargo-arm-${{ hashFiles('**/Cargo.lock') }}
       - name: Add new apt sources that support armhf
         run: |
           sudo tee /etc/apt/sources.list << EOF
@@ -74,7 +215,7 @@ jobs:
       - name: Update apt repositories
         run: sudo apt-get update
       - name: Install cross-platform installation dependencies
-        run: sudo apt-get install musl-tools libc6-dev gcc-arm-linux-gnueabihf libc6-dev:armhf libssl-dev:armhf --no-install-recommends -y
+        run: sudo apt-get install libc6-dev gcc-arm-linux-gnueabihf libc6-dev:armhf libssl-dev:armhf --no-install-recommends -y
       - name: Add setup for ARM cross-building
         run: |
           mkdir -p ~/.cargo
@@ -83,49 +224,58 @@ jobs:
           linker = "arm-linux-gnueabihf-gcc"
           rustflags = ["-L/usr/lib/arm-linux-gnueabihf"]
           EOF
-      - name: Build for Linux
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target x86_64-unknown-linux-gnu
-      - name: Build for Musl
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target x86_64-unknown-linux-musl
       - name: Build for ARM
         run: |
           export OPENSSL_DIR=/usr/arm-linux-gnueabihf
           export OPENSSL_LIB_DIR=/usr/lib/arm-linux-gnueabihf
           export OPENSSL_INCLUDE_DIR=/usr/include/arm-linux-gnueabihf
           cargo build --release --target arm-unknown-linux-gnueabihf
-      - name: Build for Windows
+      - name: Convert binaries into compressed files
+        run: |
+          cd target/arm-unknown-linux-gnueabihf/release && tar czf gw-bin_arm-unknown-linux-gnueabihf.tar.gz gw && cd -
+          cd target/arm-unknown-linux-gnueabihf/release && zip gw-bin_arm-unknown-linux-gnueabihf.zip gw && cd -
+      # - name: Upload zip to release
+      #   uses: svenstaro/upload-release-action@v2
+      #   with:
+      #     file: target/arm-unknown-linux-gnueabihf/release/gw-bin_arm-unknown-linux-gnueabihf.zip
+      #     asset_name: gw-bin_arm-unknown-linux-gnueabihf.zip
+      # - name: Upload tar.gz to release
+      #   uses: svenstaro/upload-release-action@v2
+      #   with:
+      #     file: target/arm-unknown-linux-gnueabihf/release/gw-bin_arm-unknown-linux-gnueabihf.tar.gz
+      #     asset_name: gw-bin_arm-unknown-linux-gnueabihf.tar.gz
+    
+  release_mac:
+    name: Release for MacOS
+    needs: release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v3
+      - name: Add toolchain for Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Restore cached dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: cargo-mac-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build for MacOS
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target x86_64-pc-windows-gnu
-          use-cross: true
-      # - name: Convert binaries into compressed files
-      #   run: |
-      #     cd target/x86_64-unknown-linux-gnu/release && tar czf gw-bin_x86_64-unknown-linux-gnu.tar.gz gw && cd -
-      #     cd target/x86_64-unknown-linux-gnu/release && zip gw-bin_x86_64-unknown-linux-gnu.zip gw && cd -
-      #     cd target/x86_64-unknown-linux-musl/release && tar czf gw-bin_x86_64-unknown-linux-musl.tar.gz gw && cd -
-      #     cd target/x86_64-unknown-linux-musl/release && zip gw-bin_x86_64-unknown-linux-musl.zip gw && cd -
-      #     cd target/arm-unknown-linux-gnueabihf/release && tar czf gw-bin_arm-unknown-linux-gnueabihf.tar.gz gw && cd -
-      #     cd target/arm-unknown-linux-gnueabihf/release && zip gw-bin_arm-unknown-linux-gnueabihf.zip gw && cd -
-      #     cd target/x86_64-pc-windows-gnu/release && zip gw-bin_x86_64-pc-windows-gnu.zip gw.exe && cd -
-      # - name: Release on tags
-      #   uses: softprops/action-gh-release@v1
+          args: --release --target aarch64-apple-darwin
+      - name: Convert binaries into compressed files
+        run: |
+          cd target/aarch64-apple-darwin/release && zip gw-bin_aarch64-apple-darwin.zip gw.exe && cd -
+      # - name: Upload zip to release
+      #   uses: svenstaro/upload-release-action@v2
       #   with:
-      #     files: |
-      #       target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.tar.gz
-      #       target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.zip
-      #       target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.tar.gz
-      #       target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.zip
-      #       target/arm-unknown-linux-gnueabihf/release/gw-bin_arm-unknown-linux-gnueabihf.tar.gz
-      #       target/arm-unknown-linux-gnueabihf/release/gw-bin_arm-unknown-linux-gnueabihf.zip
-      #       target/x86_64-pc-windows-gnu/release/gw-bin_x86_64-pc-windows-gnu.zip
-      # - uses: katyo/publish-crates@v2
-      #   with:
-      #     registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      #     ignore-unpublished-changes: true
+      #     file: target/aarch64-apple-darwin/release/gw-bin_aarch64-apple-darwin.zip
+      #     asset_name: gw-bin_aarch64-apple-darwin.zip
