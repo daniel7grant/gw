@@ -32,7 +32,7 @@ jobs:
       - name: Release for tags
         uses: taiki-e/create-gh-release-action@v1
         with:
-          changelog: Changelog.md
+          changelog: CHANGELOG.md
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: katyo/publish-crates@v2
         with:
