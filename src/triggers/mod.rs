@@ -9,6 +9,8 @@ pub mod http;
 pub mod once;
 /// A trigger that runs the checks periodically.
 pub mod schedule;
+/// A trigger that runs the checks periodically.
+pub mod signal;
 
 /// A custom error for describing the error cases for triggers
 #[derive(Debug, Error)]

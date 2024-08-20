@@ -6,7 +6,10 @@ use gw_bin::{
         Check, CheckError,
     },
     start::{start, StartError},
-    triggers::{http::HttpTrigger, once::OnceTrigger, schedule::ScheduleTrigger, Trigger},
+    triggers::{
+        http::HttpTrigger, once::OnceTrigger, schedule::ScheduleTrigger, signal::SignalTrigger,
+        Trigger,
+    },
 };
 use log::{debug, error, warn, LevelFilter, SetLoggerError};
 use simple_logger::SimpleLogger;
@@ -57,7 +60,7 @@ fn main_inner() -> Result<(), MainError> {
         .to_string();
 
     // Setup triggers.
-    let mut triggers: Vec<Box<dyn Trigger>> = vec![];
+    let mut triggers: Vec<Box<dyn Trigger>> = vec![Box::new(SignalTrigger)];
     if args.once {
         debug!("Setting up OnceTrigger (this will disable all other triggers).");
         triggers.push(Box::new(OnceTrigger));
