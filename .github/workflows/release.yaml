@@ -79,6 +79,7 @@ jobs:
         with:
           command: build
           args: --release --target x86_64-pc-windows-gnu
+          use-cross: true
       - name: Build for Linux
         uses: actions-rs/cargo@v1
         with:
@@ -89,7 +90,6 @@ jobs:
         with:
           command: build
           args: --release --target x86_64-unknown-linux-musl
-          use-cross: true
       # TODO: Figure out MacOS cross compilation
       # - name: Build for MacOS
       #   uses: actions-rs/cargo@v1
