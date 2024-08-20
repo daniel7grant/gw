@@ -2,8 +2,8 @@ name: Release
 
 on:
   push:
-    # tags:
-    #   - "v*"
+    tags:
+      - "v*"
 
 permissions:
   contents: write
@@ -68,6 +68,16 @@ jobs:
           linker = "arm-linux-gnueabihf-gcc"
           rustflags = ["-L/usr/lib/arm-linux-gnueabihf"]
           EOF
+      - name: Build for Linux
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-unknown-linux-gnu
+      - name: Build for Musl
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-unknown-linux-musl
       - name: Build for ARM
         run: |
           export OPENSSL_DIR=/usr/arm-linux-gnueabihf
@@ -80,40 +90,27 @@ jobs:
           command: build
           args: --release --target x86_64-pc-windows-gnu
           use-cross: true
-      - name: Build for Linux
-        uses: actions-rs/cargo@v1
+      - name: Convert binaries into compressed files
+        run: |
+          cd target/x86_64-unknown-linux-gnu/release && tar czf gw-bin_x86_64-unknown-linux-gnu.tar.gz gw && cd -
+          cd target/x86_64-unknown-linux-gnu/release && zip gw-bin_x86_64-unknown-linux-gnu.zip gw && cd -
+          cd target/x86_64-unknown-linux-musl/release && tar czf gw-bin_x86_64-unknown-linux-musl.tar.gz gw && cd -
+          cd target/x86_64-unknown-linux-musl/release && zip gw-bin_x86_64-unknown-linux-musl.zip gw && cd -
+          cd target/arm-unknown-linux-gnueabihf/release && tar czf gw-bin_arm-unknown-linux-gnueabihf.tar.gz gw && cd -
+          cd target/arm-unknown-linux-gnueabihf/release && zip gw-bin_arm-unknown-linux-gnueabihf.zip gw && cd -
+          cd target/x86_64-pc-windows-gnu/release && zip gw-bin_x86_64-pc-windows-gnu.zip gw.exe && cd -
+      - name: Release on tags
+        uses: softprops/action-gh-release@v1
         with:
-          command: build
-          args: --release --target x86_64-unknown-linux-gnu
-      - name: Build for Musl
-        uses: actions-rs/cargo@v1
+          files: |
+            target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.tar.gz
+            target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.zip
+            target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.tar.gz
+            target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.zip
+            target/arm-unknown-linux-gnueabihf/release/gw-bin_arm-unknown-linux-gnueabihf.tar.gz
+            target/arm-unknown-linux-gnueabihf/release/gw-bin_arm-unknown-linux-gnueabihf.zip
+            target/x86_64-pc-windows-gnu/release/gw-bin_x86_64-pc-windows-gnu.zip
+      - uses: katyo/publish-crates@v2
         with:
-          command: build
-          args: --release --target x86_64-unknown-linux-musl
-      # TODO: Figure out MacOS cross compilation
-      # - name: Build for MacOS
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: build
-      #     args: --release --target x86_64-apple-darwin
-      #     use-cross: true
-    #   - name: Convert binaries into compressed files
-    #     run: |
-    #       cd target/x86_64-unknown-linux-gnu/release && tar czf gw-bin_x86_64-unknown-linux-gnu.tar.gz gw && cd -
-    #       cd target/x86_64-unknown-linux-gnu/release && zip gw-bin_x86_64-unknown-linux-gnu.zip gw && cd -
-    #       cd target/x86_64-unknown-linux-musl/release && tar czf gw-bin_x86_64-unknown-linux-musl.tar.gz gw && cd -
-    #       cd target/x86_64-unknown-linux-musl/release && zip gw-bin_x86_64-unknown-linux-musl.zip gw && cd -
-    #       cd target/x86_64-pc-windows-gnu/release && zip gw-bin_x86_64-pc-windows-gnu.zip gw.exe && cd -
-    #   - name: Release on tags
-    #     uses: softprops/action-gh-release@v1
-    #     with:
-    #       files: |
-    #         target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.tar.gz
-    #         target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.zip
-    #         target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.tar.gz
-    #         target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.zip
-    #         target/x86_64-pc-windows-gnu/release/gw-bin_x86_64-pc-windows-gnu.zip
-    #   - uses: katyo/publish-crates@v2
-    #     with:
-    #       registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-    #       ignore-unpublished-changes: true
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          ignore-unpublished-changes: true
