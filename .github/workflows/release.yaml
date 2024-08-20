@@ -19,7 +19,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: x86_64-unknown-linux-musl
+          target: x86_64-unknown-linux-musl arm-unknown-linux-gnueabihf
       - name: Restore cached dependencies
         uses: actions/cache@v3
         with:
@@ -32,6 +32,16 @@ jobs:
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install cross-platform installation dependencies
         run: sudo apt-get install musl-tools gcc-arm-linux-gnueabihf --no-install-recommends -y
+      - name: Build for ARM
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target arm-unknown-linux-gnueabihf
+      - name: Build for Windows
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-pc-windows-gnu
       - name: Build for Linux
         uses: actions-rs/cargo@v1
         with:
@@ -42,16 +52,6 @@ jobs:
         with:
           command: build
           args: --release --target x86_64-unknown-linux-musl
-      - name: Build for ARMv7
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target arm-unknown-linux-gnueabihf
-      - name: Build for Windows
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target x86_64-pc-windows-gnu
           use-cross: true
       # TODO: Figure out MacOS cross compilation
       # - name: Build for MacOS
