@@ -15,6 +15,10 @@ jobs:
     steps:
       - name: Checkout the tag
         uses: actions/checkout@v3
+      - name: Enable ARM cross-build capabilities
+        run: sudo dpkg --add-architecture armhf
+      - name: Update apt repositories
+        run: sudo apt-get update
       - name: Add toolchain for Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -33,10 +37,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Enable ARM cross-build capabilities
-        run: sudo dpkg --add-architecture armhf
-    #   - name: Update apt repositories
-    #     run: sudo apt-get update
       - name: Install cross-platform installation dependencies
         run: sudo apt-get install musl-tools gcc-arm-linux-gnueabihf libssl-dev:armhf --no-install-recommends -y
       - name: Add setup for ARM cross-building
