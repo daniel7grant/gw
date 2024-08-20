@@ -97,6 +97,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          target: x86_64-unknown-linux-musl
       - name: Restore cached dependencies
         uses: actions/cache@v3
         with:
@@ -177,8 +178,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Install target for ARM
-        run: rustup target add --toolchain stable arm-unknown-linux-gnueabihf
+          target: arm-unknown-linux-gnueabihf
       - name: Restore cached dependencies
         uses: actions/cache@v3
         with:
@@ -273,7 +273,7 @@ jobs:
           args: --release --target aarch64-apple-darwin
       - name: Convert binaries into compressed files
         run: |
-          cd target/aarch64-apple-darwin/release && zip gw-bin_aarch64-apple-darwin.zip gw.exe && cd -
+          cd target/aarch64-apple-darwin/release && zip gw-bin_aarch64-apple-darwin.zip gw && cd -
       # - name: Upload zip to release
       #   uses: svenstaro/upload-release-action@v2
       #   with:
