@@ -31,7 +31,7 @@ jobs:
             target/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install cross-platform installation dependencies
-        run: sudo apt-get install gcc-arm-linux-gnueabihf --no-install-recommedns -y
+        run: sudo apt-get install gcc-arm-linux-gnueabihf --no-install-recommends -y
       - name: Build for Linux
         uses: actions-rs/cargo@v1
         with:
