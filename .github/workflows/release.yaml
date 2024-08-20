@@ -59,7 +59,7 @@ jobs:
       - name: Update apt repositories
         run: sudo apt-get update
       - name: Install cross-platform installation dependencies
-        run: sudo apt-get install musl-tools gcc-arm-linux-gnueabihf libssl-dev:armhf --no-install-recommends -y
+        run: sudo apt-get install musl-tools libc6-dev gcc-arm-linux-gnueabihf libc6-dev:armhf libssl-dev:armhf --no-install-recommends -y
       - name: Add setup for ARM cross-building
         run: |
           mkdir -p ~/.cargo
