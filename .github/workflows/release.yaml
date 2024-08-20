@@ -34,7 +34,7 @@ jobs:
             target/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install cross-platform installation dependencies
-        run: sudo apt-get install musl-tools gcc-arm-linux-gnueabihf --no-install-recommends -y
+        run: sudo apt-get install musl-tools gcc-arm-linux-gnueabihf libssl-dev --no-install-recommends -y
       - name: Build for ARM
         uses: actions-rs/cargo@v1
         with:
