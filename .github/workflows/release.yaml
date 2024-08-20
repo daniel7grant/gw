@@ -33,10 +33,17 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Debug
-        run: curl -sSf https://sshx.io/get | sh
-      - name: Debug
-        run: sshx
+      - name: Add new apt sources that support armhf
+        run: |
+          cat > /etc/apt/sources.list << EOF
+          deb [arch=armhf,arm64] http://ports.ubuntu.com/ jammy main restricted
+          deb [arch=armhf,arm64] http://ports.ubuntu.com/ jammy-updates main restricted
+          deb [arch=armhf,arm64] http://ports.ubuntu.com/ jammy universe
+          deb [arch=armhf,arm64] http://ports.ubuntu.com/ jammy-updates universe
+          deb [arch=armhf,arm64] http://ports.ubuntu.com/ jammy multiverse
+          deb [arch=armhf,arm64] http://ports.ubuntu.com/ jammy-updates multiverse
+          deb [arch=armhf,arm64] http://ports.ubuntu.com/ jammy-backports main restricted universe multiverse
+          EOF
       - name: Enable ARM cross-build capabilities
         run: sudo dpkg --add-architecture armhf
       - name: Update apt repositories
