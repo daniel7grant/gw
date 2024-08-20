@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release_mac:
-    name: Release if we are on a tag
+    name: Release for MacOS
     runs-on: macos-latest
     steps:
       - name: Checkout the tag
@@ -23,9 +23,9 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target x86_64-apple-darwin
+          args: --release --target aarch64-apple-darwin
   release:
-    name: Release if we are on a tag
+    name: Release for everything else
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the tag
