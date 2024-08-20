@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2024-08-21
+
 ### Added
 
 - Support cross-compilation for Linux ARM machines
