@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Linux ARM machines
+- Add support for MacOS ARM machines
+- Add Changelog to releases automatically
+
+### Changed
+
+- Fix accidentally dropped Windows support
+
 ## [0.3.0] - 2024-08-19
 
 ### Added
