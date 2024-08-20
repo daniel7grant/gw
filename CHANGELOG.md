@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- Support cross-compilation for Linux ARM machines
+- Support compilation for MacOS ARM machines
+- Support multi-platform Docker images
+- Add Changelog to releases automatically
+
+### Changed
+
+- Fix accidentally dropped Windows support
+
 ## [0.3.0] - 2024-08-19
 
 ### Added

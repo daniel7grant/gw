@@ -26,6 +26,12 @@ case "$PLATFORM" in
     "Linux x86_64")
         FILE="gw-bin_x86_64-unknown-linux-$LIBC.zip"
         ;;
+    "Linux aarch"* | "Linux arm"*)
+        FILE="gw-bin_arm-unknown-linux-gnueabihf.zip"
+        ;;
+    "Darwin arm64")
+        FILE="gw-bin_aarch64-apple-darwin.zip"
+        ;;
     *)
         fail "Platform $PLATFORM is currently not supported."
         ;;

@@ -4,9 +4,7 @@ use crate::{
     context::Context,
     triggers::{Trigger, TriggerError},
 };
-use log::{debug, error, info, warn};
-use signal_hook::iterator::exfiltrator::SignalOnly;
-use signal_hook::{consts::TERM_SIGNALS, iterator::SignalsInfo};
+use log::{debug, error, info};
 use std::{sync::mpsc, thread};
 use thiserror::Error;
 
@@ -42,19 +40,6 @@ pub fn start(
             }
         });
     }
-
-    thread::spawn(move || {
-        if let Ok(mut signals) = SignalsInfo::<SignalOnly>::new(TERM_SIGNALS) {
-            for signal in signals.forever() {
-                debug!("Got signal {signal}, terminating after all actions finished.");
-                if tx.send(None).is_err() {
-                    error!("Failed terminating the application with signal {signal}.");
-                }
-            }
-        } else {
-            warn!("Failed setting up signal handler.");
-        }
-    });
 
     debug!("Waiting on triggers.");
     while let Ok(Some(mut context)) = rx.recv() {
