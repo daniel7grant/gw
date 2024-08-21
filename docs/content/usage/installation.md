@@ -12,7 +12,7 @@ weight = 1
 The simplest way is to run the installation script:
 
 ```sh
-curl https://gw.danielgrants.com/install.sh | bash
+curl https://gw.danielgrants.com/install.sh | sh
 ```
 
 This will download the script to `~/.local/bin` or if run by root to `/usr/local/bin`.

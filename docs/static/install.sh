@@ -42,6 +42,7 @@ echo "Downloading version $VERSION to $PLATFORM..."
 DOWNLOAD_URL="$REPO/releases/download/$VERSION/$FILE"
 curl -Lfq --progress-bar $DOWNLOAD_URL -o $FILE || fail "Failed to download $DOWNLOAD_URL."
 unzip -qo $FILE || fail "Failed to unzip $FILE."
+mkdir -p $BIN_DIR
 mv gw "$BIN_DIR/gw"
 rm $FILE
 

@@ -113,16 +113,16 @@ jobs:
         run: |
           cd target/x86_64-unknown-linux-musl/release && tar czf gw-bin_x86_64-unknown-linux-musl.tar.gz gw && cd -
           cd target/x86_64-unknown-linux-musl/release && zip gw-bin_x86_64-unknown-linux-musl.zip gw && cd -
-      # - name: Upload zip to release
-      #   uses: svenstaro/upload-release-action@v2
-      #   with:
-      #     file: target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.zip
-      #     asset_name: gw-bin_x86_64-unknown-linux-musl.zip
-      # - name: Upload tar.gz to release
-      #   uses: svenstaro/upload-release-action@v2
-      #   with:
-      #     file: target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.tar.gz
-      #     asset_name: gw-bin_x86_64-unknown-linux-musl.tar.gz
+      - name: Upload zip to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.zip
+          asset_name: gw-bin_x86_64-unknown-linux-musl.zip
+      - name: Upload tar.gz to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.tar.gz
+          asset_name: gw-bin_x86_64-unknown-linux-musl.tar.gz
   
   release_windows:
     name: Release for Windows
