@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
-set -euo pipefail
+set -o pipefail 2>/dev/null | true 
+set -eu
 
 fail() {
     echo $1
