@@ -302,6 +302,7 @@ jobs:
       - name: Build and push Docker image for ARM
         uses: docker/build-push-action@v5
         with:
+          context: .
           file: ./Dockerfile.arm
           push: true
           tags: "danielgrant/gw:${{ github.ref_name }}-arm"
@@ -311,6 +312,7 @@ jobs:
       - name: Build and push Docker image for x86_64
         uses: docker/build-push-action@v5
         with:
+          context: .
           file: ./Dockerfile
           push: true
           tags: "danielgrant/gw:${{ github.ref_name }}-amd"
