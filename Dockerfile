@@ -10,12 +10,18 @@ RUN apt-get update && \
         musl-tools \
         perl && \
     rm -rf /var/lib/apt/lists/* && \
-    rustup target add x86_64-unknown-linux-musl
+    # Install the musl equivalent of the default target to work on arm
+    GNU_TARGET="$(rustup target list --installed)" && \
+    MUSL_TARGET="$(echo $GNU_TARGET | sed 's/gnu/musl/')" && \
+    rustup target add $MUSL_TARGET
 
 COPY ./Cargo.lock ./Cargo.toml /app
 COPY ./src /app/src
 
-RUN cargo build --release --target x86_64-unknown-linux-musl
+# Change the default target to work on arm, but maintain release
+RUN MUSL_TARGET="$(rustup target list --installed | grep musl)" && \
+    cargo build --release --target $MUSL_TARGET && \
+    cp -r target/$MUSL_TARGET/release/* target/release
 
 
 FROM alpine:3.20
@@ -23,6 +29,6 @@ FROM alpine:3.20
 RUN apk add --no-cache \
         ca-certificates
 
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/gw /usr/bin/gw
+COPY --from=builder /app/target/release/gw /usr/bin/gw
 
 ENTRYPOINT ["/usr/bin/gw"]
