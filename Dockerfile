@@ -1,29 +1,34 @@
-FROM rust:1.80 AS builder
+# Reproduce some amount of rust:1.80-alpine because it doesn't support armv7 now
+FROM alpine:3.20 AS rust-1.80-alpine
+
+RUN apk add --no-cache \
+        ca-certificates \
+        curl \
+        gcc
+
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --no-modify-path --profile minimal --default-toolchain 1.80
+
+
+FROM rust-1.80-alpine AS builder
 
 WORKDIR /app
 
 ARG OPENSSL_STATIC=1
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        libc6-dev \
-        libssl-dev \
+RUN apk add --no-cache \
         make \
-        musl-tools \
-        perl && \
-    rm -rf /var/lib/apt/lists/* && \
-    # Install the musl equivalent of the default target to work on arm
-    GNU_TARGET="$(rustup target list --installed)" && \
-    MUSL_TARGET="$(echo $GNU_TARGET | sed 's/gnu/musl/')" && \
-    rustup target add $MUSL_TARGET
+        musl-dev \
+        perl
 
 COPY ./Cargo.lock ./Cargo.toml /app
 COPY ./src /app/src
 
-# Change the default target to work on arm, but maintain release
-RUN MUSL_TARGET="$(rustup target list --installed | grep musl)" && \
-    cargo build --release --target $MUSL_TARGET && \
-    cp -r target/$MUSL_TARGET/release/* target/release
+RUN cargo build --release
 
 
 FROM alpine:3.20
