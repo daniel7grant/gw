@@ -24,15 +24,7 @@ jobs:
         with:
           toolchain: stable
       - name: Restore cached dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+        uses: Swatinem/rust-cache@v2
       - name: Release for tags
         uses: taiki-e/create-gh-release-action@v1
         if: ${{ env.isLiveRelease == 'true' }}
@@ -58,15 +50,7 @@ jobs:
         with:
           toolchain: stable
       - name: Restore cached dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: cargo-linux-${{ hashFiles('**/Cargo.lock') }}
+        uses: Swatinem/rust-cache@v2
       - name: Build for Linux
         uses: actions-rs/cargo@v1
         with:
@@ -109,15 +93,7 @@ jobs:
           toolchain: stable
           target: x86_64-unknown-linux-musl
       - name: Restore cached dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: cargo-musl-${{ hashFiles('**/Cargo.lock') }}
+        uses: Swatinem/rust-cache@v2
       - name: Install MUSL dependencies
         run: sudo apt-get install musl-tools --no-install-recommends -y
       - name: Build for Musl
@@ -161,15 +137,7 @@ jobs:
         with:
           toolchain: stable
       - name: Restore cached dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: cargo-windows-${{ hashFiles('**/Cargo.lock') }}
+        uses: Swatinem/rust-cache@v2
       - name: Build for Windows
         uses: actions-rs/cargo@v1
         with:
@@ -207,15 +175,7 @@ jobs:
           toolchain: stable
           target: arm-unknown-linux-gnueabihf
       - name: Restore cached dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: cargo-arm-${{ hashFiles('**/Cargo.lock') }}
+        uses: Swatinem/rust-cache@v2
       - name: Add new apt sources that support armhf
         run: |
           sudo tee /etc/apt/sources.list << EOF
@@ -294,15 +254,7 @@ jobs:
         with:
           toolchain: stable
       - name: Restore cached dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: cargo-mac-${{ hashFiles('**/Cargo.lock') }}
+        uses: Swatinem/rust-cache@v2
       - name: Build for MacOS
         uses: actions-rs/cargo@v1
         with:
