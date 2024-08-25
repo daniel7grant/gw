@@ -249,7 +249,7 @@ jobs:
           cat > ~/.cargo/config.toml << EOF
           [target.arm-unknown-linux-gnueabihf]
           linker = "arm-linux-gnueabihf-gcc"
-          rustflags = ["-L/usr/lib/arm-linux-gnueabihf"]
+          rustflags = ["-L/usr/lib/arm-linux-gnueabihf", "-C", "target-feature=+crt-static"]
           EOF
       - name: Build for ARM
         run: |
