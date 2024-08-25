@@ -5,6 +5,10 @@ on:
     tags:
       - "v*"
 
+env:
+  isRcRelease: ${{ contains(github.ref, 'rc') }}
+  isLiveRelease: ${{ ! contains(github.ref, 'rc') }}
+
 jobs:
   release:
     name: Docker build if we are on a tag
@@ -34,15 +38,16 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          file: ./Dockerfile
+          file: ./.github/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=danielgrant/gw:latest
           cache-to: type=inline
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v4
+        if: ${{ env.isLiveRelease }}
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}

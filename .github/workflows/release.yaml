@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+env:
+  isRcRelease: ${{ contains(github.ref, 'rc') }}
+  isLiveRelease: ${{ ! contains(github.ref, 'rc') }}
+
 jobs:
   release:
     name: Create GitHub release
@@ -31,10 +35,13 @@ jobs:
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Release for tags
         uses: taiki-e/create-gh-release-action@v1
+        if: ${{ env.isLiveRelease }}
         with:
           changelog: CHANGELOG.md
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: katyo/publish-crates@v2
+      - name: Publish to Crates.io
+        uses: katyo/publish-crates@v2
+        if: ${{ env.isLiveRelease }}
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           ignore-unpublished-changes: true
@@ -71,14 +78,23 @@ jobs:
           cd target/x86_64-unknown-linux-gnu/release && zip gw-bin_x86_64-unknown-linux-gnu.zip gw && cd -
       - name: Upload zip to release
         uses: svenstaro/upload-release-action@v2
+        if: ${{ env.isLiveRelease }}
         with:
           file: target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.zip
           asset_name: gw-bin_x86_64-unknown-linux-gnu.zip
       - name: Upload tar.gz to release
         uses: svenstaro/upload-release-action@v2
+        if: ${{ env.isLiveRelease }}
         with:
           file: target/x86_64-unknown-linux-gnu/release/gw-bin_x86_64-unknown-linux-gnu.tar.gz
           asset_name: gw-bin_x86_64-unknown-linux-gnu.tar.gz
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ env.isRcRelease }}
+        with:
+          name: gw-bin_x86_64-unknown-linux-gnu
+          path: |
+            target/x86_64-unknown-linux-gnu/release/gw
   
   release_musl:
     name: Release for Musl
@@ -115,14 +131,23 @@ jobs:
           cd target/x86_64-unknown-linux-musl/release && zip gw-bin_x86_64-unknown-linux-musl.zip gw && cd -
       - name: Upload zip to release
         uses: svenstaro/upload-release-action@v2
+        if: ${{ env.isLiveRelease }}
         with:
           file: target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.zip
           asset_name: gw-bin_x86_64-unknown-linux-musl.zip
       - name: Upload tar.gz to release
         uses: svenstaro/upload-release-action@v2
+        if: ${{ env.isLiveRelease }}
         with:
           file: target/x86_64-unknown-linux-musl/release/gw-bin_x86_64-unknown-linux-musl.tar.gz
           asset_name: gw-bin_x86_64-unknown-linux-musl.tar.gz
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ env.isRcRelease }}
+        with:
+          name: gw-bin_x86_64-unknown-linux-musl
+          path: |
+            target/x86_64-unknown-linux-musl/release/gw
   
   release_windows:
     name: Release for Windows
@@ -156,9 +181,17 @@ jobs:
           cd target/x86_64-pc-windows-gnu/release && zip gw-bin_x86_64-pc-windows-gnu.zip gw.exe && cd -
       - name: Upload zip to release
         uses: svenstaro/upload-release-action@v2
+        if: ${{ env.isLiveRelease }}
         with:
           file: target/x86_64-pc-windows-gnu/release/gw-bin_x86_64-pc-windows-gnu.zip
           asset_name: gw-bin_x86_64-pc-windows-gnu.zip
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ env.isRcRelease }}
+        with:
+          name: gw-bin_x86_64-pc-windows-gnu
+          path: |
+            target/x86_64-pc-windows-gnu/release/gw.exe
   
   
   release_arm:
@@ -230,14 +263,23 @@ jobs:
           cd target/arm-unknown-linux-gnueabihf/release && zip gw-bin_arm-unknown-linux-gnueabihf.zip gw && cd -
       - name: Upload zip to release
         uses: svenstaro/upload-release-action@v2
+        if: ${{ env.isLiveRelease }}
         with:
           file: target/arm-unknown-linux-gnueabihf/release/gw-bin_arm-unknown-linux-gnueabihf.zip
           asset_name: gw-bin_arm-unknown-linux-gnueabihf.zip
       - name: Upload tar.gz to release
         uses: svenstaro/upload-release-action@v2
+        if: ${{ env.isLiveRelease }}
         with:
           file: target/arm-unknown-linux-gnueabihf/release/gw-bin_arm-unknown-linux-gnueabihf.tar.gz
           asset_name: gw-bin_arm-unknown-linux-gnueabihf.tar.gz
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ env.isRcRelease }}
+        with:
+          name: gw-bin_arm-unknown-linux-gnueabihf
+          path: |
+            target/arm-unknown-linux-gnueabihf/release/gw
     
   release_mac:
     name: Release for MacOS
@@ -268,8 +310,16 @@ jobs:
       - name: Convert binaries into compressed files
         run: |
           cd target/aarch64-apple-darwin/release && zip gw-bin_aarch64-apple-darwin.zip gw && cd -
-      - name: Upload zip to release
+      - name: Upload zip to live release
         uses: svenstaro/upload-release-action@v2
+        if: ${{ env.isLiveRelease }}
         with:
           file: target/aarch64-apple-darwin/release/gw-bin_aarch64-apple-darwin.zip
           asset_name: gw-bin_aarch64-apple-darwin.zip
+      - name: Store artifacts for the release candidates
+        uses: actions/upload-artifact@v4
+        if: ${{ env.isRcRelease }}
+        with:
+          name: gw-bin_aarch64-apple-darwin
+          path: |
+            target/aarch64-apple-darwin/release/gw
