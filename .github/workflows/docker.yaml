@@ -47,7 +47,7 @@ jobs:
           cache-to: type=inline
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v4
-        if: ${{ env.isLiveRelease == true }}
+        if: ${{ env.isLiveRelease == 'true' }}
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
