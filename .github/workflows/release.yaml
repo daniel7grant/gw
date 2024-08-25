@@ -236,7 +236,6 @@ jobs:
           asset_name: gw-bin_arm-unknown-linux-gnueabihf.tar.gz
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
-        if: ${{ env.isRcRelease == 'true' }}
         with:
           name: gw-bin_arm-unknown-linux-gnueabihf
           path: |
@@ -298,6 +297,8 @@ jobs:
         with:
           name: gw-bin_arm-unknown-linux-gnueabihf
           path: target/arm-unknown-linux-gnueabihf/release
+      - name: Make artifact executable
+        run: chmod +x target/arm-unknown-linux-gnueabihf/release/gw
       - name: Build and push Docker image for x86_64
         id: build_amd64
         uses: docker/build-push-action@v5
