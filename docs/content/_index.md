@@ -22,10 +22,10 @@ Features of `gw`:
 
 ## Installation
 
-To get started download the `gw` binary from [releases](https://github.com/daniel7grant/gw/releases/latest) or install with [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html):
+To get started with `gw`, you can use the install script:
 
 ```sh
-cargo install gw-bin
+curl https://gw.danielgrants.com/install.sh | sh
 ```
 
 For more installation methods, see [Installation](/usage/installation).
