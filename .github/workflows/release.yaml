@@ -298,6 +298,7 @@ jobs:
         with:
           name: gw-bin_arm-unknown-linux-gnueabihf
           path: target/arm-unknown-linux-gnueabihf/release
+      - run: tree target
       - name: Build and push Docker image for ARM
         uses: docker/build-push-action@v5
         with:
