@@ -298,17 +298,6 @@ jobs:
         with:
           name: gw-bin_arm-unknown-linux-gnueabihf
           path: target/arm-unknown-linux-gnueabihf/release
-      - run: tree target
-      - name: Build and push Docker image for ARM
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.arm
-          push: true
-          tags: "danielgrant/gw:${{ github.ref_name }}-arm"
-          platforms: linux/arm64,linux/arm/v7
-          cache-from: type=registry,ref=danielgrant/gw:latest
-          cache-to: type=inline
       - name: Build and push Docker image for x86_64
         uses: docker/build-push-action@v5
         with:
@@ -318,9 +307,19 @@ jobs:
           tags: "danielgrant/gw:${{ github.ref_name }}-amd"
           cache-from: type=registry,ref=danielgrant/gw:latest
           cache-to: type=inline
+      - name: Build and push Docker image for ARM
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.arm
+          push: true
+          tags: "danielgrant/gw:${{ github.ref_name }}"
+          platforms: linux/arm64,linux/arm/v7
+          cache-from: type=registry,ref=danielgrant/gw:latest
+          cache-to: type=inline
       - name: Merge images with manifest
         run: |
-          docker manifest create danielgrant/gw:${{ github.ref_name }} --amend danielgrant/gw:${{ github.ref_name }}-arm --amend danielgrant/gw:${{ github.ref_name }}-amd
+          docker manifest create --amend danielgrant/gw:${{ github.ref_name }} danielgrant/gw:${{ github.ref_name }}-amd
           docker manifest push danielgrant/gw:${{ github.ref_name }}
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v4
