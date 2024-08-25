@@ -6,6 +6,8 @@ ARG OPENSSL_STATIC=1
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+        libc6-dev \
+        libssl-dev \
         make \
         musl-tools \
         perl && \
