@@ -341,16 +341,11 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      - name: Build and push Docker image for x86_64
-        uses: docker/build-push-action@v5
-        with:
-          file: ./Dockerfile
-          push: true
-          tags: "danielgrant/gw:${{ github.ref_name }}-amd"
-          cache-from: type=registry,ref=danielgrant/gw:latest
-          cache-to: type=inline
       - name: Download artifacts
         uses: actions/download-artifact@v4
+        with:
+          name: gw-bin_arm-unknown-linux-gnueabihf
+          path: target/arm-unknown-linux-gnueabihf/release
       - name: Build and push Docker image for ARM
         uses: docker/build-push-action@v5
         with:
@@ -358,6 +353,14 @@ jobs:
           push: true
           tags: "danielgrant/gw:${{ github.ref_name }}-arm"
           platforms: linux/arm64,linux/arm/v7
+          cache-from: type=registry,ref=danielgrant/gw:latest
+          cache-to: type=inline
+      - name: Build and push Docker image for x86_64
+        uses: docker/build-push-action@v5
+        with:
+          file: ./Dockerfile
+          push: true
+          tags: "danielgrant/gw:${{ github.ref_name }}-amd"
           cache-from: type=registry,ref=danielgrant/gw:latest
           cache-to: type=inline
       - name: Merge images with manifest
