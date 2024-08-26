@@ -1,6 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.2] - 2024-08-26
+
+### Added
+
+- Add Docker image support for arm/v7
+
+### Changed
+
+- Make ARM binaries statically linked 32-bit to maintain compatibility with older devices
 
 ## [0.3.1] - 2024-08-21
 

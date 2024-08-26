@@ -58,7 +58,7 @@ For this we can start off of our application image as a base layer and add the `
 FROM example.org/registry/node-image:ubuntu
 
 # Copy from the `gw` image
-COPY --from=danielgrant/gw:0.3.1 /usr/bin/gw /usr/bin/gw
+COPY --from=danielgrant/gw:0.3.2 /usr/bin/gw /usr/bin/gw
 
 ENTRYPOINT ["/usr/bin/gw"]
 CMD ["/app", "-s", "npm run build"]
