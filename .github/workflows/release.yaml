@@ -315,22 +315,37 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+        #   push: true
+          tags: "danielgrant/gw:${{ github.ref_name }}-amd64"
           cache-from: type=registry,ref=danielgrant/gw:latest
           cache-to: type=inline
-      - name: Build and push Docker image for ARM
+      - name: Build and push Docker image for ARMv7
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile.arm
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/arm64,linux/arm/v7
+        #   push: true
+          tags: "danielgrant/gw:${{ github.ref_name }}-armv7"
+          platforms: linux/arm/v7
           cache-from: type=registry,ref=danielgrant/gw:latest
           cache-to: type=inline
+      - name: Build and push Docker image for ARM64
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.arm
+        #   push: true
+          tags: "danielgrant/gw:${{ github.ref_name }}-arm64"
+          platforms: linux/arm64
+          cache-from: type=registry,ref=danielgrant/gw:latest
+          cache-to: type=inline
+      - name: Merge tags with docker manifest
+        run: |
+          docker manifest create danielgrant/gw:${{ github.ref_name }} \
+            danielgrant/gw:${{ github.ref_name }}-amd64 \
+            danielgrant/gw:${{ github.ref_name }}-arm64 \
+            danielgrant/gw:${{ github.ref_name }}-armv7
+          docker manifest push danielgrant/gw:${{ github.ref_name }}
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v4
         if: ${{ env.isLiveRelease == 'true' }}
