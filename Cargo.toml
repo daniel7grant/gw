@@ -16,7 +16,7 @@ gumdrop = "0.8.1"
 log = "0.4.20"
 mockall = "0.12.1"
 signal-hook = "0.3.17"
-simple_logger = "4.3.3"
+simple_logger = "5.0.0"
 thiserror = "1.0.56"
 tiny_http = "0.12.0"
 
