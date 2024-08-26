@@ -315,7 +315,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-        #   push: true
+          push: true
           tags: "danielgrant/gw:${{ github.ref_name }}-amd64"
           cache-from: type=registry,ref=danielgrant/gw:latest
           cache-to: type=inline
@@ -324,7 +324,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.arm
-        #   push: true
+          push: true
           tags: "danielgrant/gw:${{ github.ref_name }}-armv7"
           platforms: linux/arm/v7
           cache-from: type=registry,ref=danielgrant/gw:latest
@@ -334,22 +334,17 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.arm
-        #   push: true
+          push: true
           tags: "danielgrant/gw:${{ github.ref_name }}-arm64"
           platforms: linux/arm64
           cache-from: type=registry,ref=danielgrant/gw:latest
           cache-to: type=inline
-      - name: Debug with sshx
-        run: |
-          curl -sSf https://sshx.io/get | sh
-          sshx
       - name: Merge tags with docker manifest
         run: |
-          docker manifest create danielgrant/gw:${{ github.ref_name }} \
+          docker imagetools create --tag danielgrant/gw:${{ github.ref_name }} \
             danielgrant/gw:${{ github.ref_name }}-amd64 \
             danielgrant/gw:${{ github.ref_name }}-arm64 \
             danielgrant/gw:${{ github.ref_name }}-armv7
-          docker manifest push danielgrant/gw:${{ github.ref_name }}
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v4
         if: ${{ env.isLiveRelease == 'true' }}
