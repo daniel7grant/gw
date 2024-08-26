@@ -341,7 +341,6 @@ jobs:
           cache-to: type=inline
       - name: Start interactive debugging
         run: |
-          echo ${{ steps.meta.outputs.tags }}
           curl -sSf https://sshx.io/get | sh
           sshx
       - name: Merge tags with docker manifest
