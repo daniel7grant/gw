@@ -10,7 +10,7 @@ repository = "https://github.com/daniel7grant/gw"
 [dependencies]
 dirs = "5.0.1"
 duct_sh = "0.13.7"
-duration-string = "0.3.0"
+duration-string = "0.4.0"
 git2 = "0.18.1"
 gumdrop = "0.8.1"
 log = "0.4.20"
