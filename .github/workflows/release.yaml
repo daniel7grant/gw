@@ -315,7 +315,6 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: true
           outputs: type=image,name=danielgrant/gw:${{ github.ref_name }}-amd64,push-by-digest=true,name-canonical=true,push=true
           cache-from: type=registry,ref=danielgrant/gw:latest
           cache-to: type=inline
@@ -325,7 +324,6 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.arm
-          push: true
           outputs: type=image,name=danielgrant/gw:${{ github.ref_name }}-armv7,push-by-digest=true,name-canonical=true,push=true
           platforms: linux/arm/v7
           cache-from: type=registry,ref=danielgrant/gw:latest
@@ -336,7 +334,6 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.arm
-          push: true
           outputs: type=image,name=danielgrant/gw:${{ github.ref_name }}-arm64,push-by-digest=true,name-canonical=true,push=true
           platforms: linux/arm64
           cache-from: type=registry,ref=danielgrant/gw:latest
