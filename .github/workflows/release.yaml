@@ -341,7 +341,7 @@ jobs:
           cache-to: type=inline
       - name: Merge tags with docker manifest
         run: |
-          docker imagetools create --tag danielgrant/gw:${{ github.ref_name }} \
+          docker buildx imagetools create --tag danielgrant/gw:${{ github.ref_name }} \
             danielgrant/gw:${{ github.ref_name }}-amd64 \
             danielgrant/gw:${{ github.ref_name }}-arm64 \
             danielgrant/gw:${{ github.ref_name }}-armv7
