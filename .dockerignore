@@ -1,3 +1,8 @@
-target
+target/*
+!target/arm-unknown-linux-gnueabihf
+target/arm-unknown-linux-gnueabihf/*
+!target/arm-unknown-linux-gnueabihf/release
+target/arm-unknown-linux-gnueabihf/release/*
+!target/arm-unknown-linux-gnueabihf/release/gw
 docs
 test_directories

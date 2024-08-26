@@ -1,0 +1,10 @@
+# This image is only for CI to avoid the very slow QEMU compilation
+FROM alpine:3.20
+
+RUN apk add --no-cache \
+        ca-certificates
+
+# Use the previously built binary artifact
+COPY target/arm-unknown-linux-gnueabihf/release/gw /usr/bin/gw
+
+ENTRYPOINT ["/usr/bin/gw"]
