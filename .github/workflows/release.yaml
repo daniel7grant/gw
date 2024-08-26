@@ -339,6 +339,10 @@ jobs:
           platforms: linux/arm64
           cache-from: type=registry,ref=danielgrant/gw:latest
           cache-to: type=inline
+      - name: Debug with sshx
+        run: |
+          curl -sSf https://sshx.io/get | sh
+          sshx
       - name: Merge tags with docker manifest
         run: |
           docker manifest create danielgrant/gw:${{ github.ref_name }} \
