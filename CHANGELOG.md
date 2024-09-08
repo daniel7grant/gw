@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Only change gitconfig (safe.directory) if there isn't one
+
 ## [0.3.2] - 2024-08-26
 
 ### Added

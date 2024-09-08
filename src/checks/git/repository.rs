@@ -42,12 +42,9 @@ pub fn shorthash(sha: &str) -> String {
 impl GitRepository {
     /// Open a directory as a GitRepository. Fails if the directory is not a valid git repo.
     pub fn open(directory: &str) -> Result<Self, GitError> {
-        let mut cfg = Config::open_default().map_err(|_| GitError::ConfigLoadingFailed)?;
-        cfg.set_str("safe.directory", directory)
-            .map_err(|_| GitError::ConfigLoadingFailed)?;
-
-        let repo = Repository::open(directory)
-            .map_err(|_| GitError::NotAGitRepository(String::from(directory)))?;
+        let repo = Repository::open(directory).map_err(|err| {
+            GitError::NotAGitRepository(String::from(directory), err.message().trim().to_string())
+        })?;
 
         // Do a sanity check to fail instantly if there are any issues
         let git_repo = GitRepository { repo, auth: None };
