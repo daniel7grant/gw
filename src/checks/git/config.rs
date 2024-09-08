@@ -1,6 +1,7 @@
 use super::GitError;
 use dirs::home_dir;
 use std::{fs::File, io::Write, path::PathBuf};
+use log::warn;
 
 /// Setup the gitconfig file.
 ///
@@ -13,6 +14,12 @@ pub fn setup_gitconfig(directory: &str) -> Result<(), GitError> {
     let config = home.join(".gitconfig");
 
     if !config.exists() {
+        warn!(
+            "There is no {}, creating with safe.directory = {}.",
+            config.to_string_lossy(),
+            directory
+        );
+
         let mut config_file = File::create(config).map_err(|_| GitError::ConfigLoadingFailed)?;
         writeln!(config_file, "[safe]\n  directory = {directory}")
             .map_err(|_| GitError::ConfigLoadingFailed)?;
