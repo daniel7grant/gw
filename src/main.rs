@@ -1,6 +1,6 @@
 use args::parse_args;
 use gw_bin::{
-    actions::{script::ScriptAction, Action},
+    actions::{process::ProcessAction, script::ScriptAction, Action},
     checks::{
         git::{CredentialAuth, GitCheck},
         Check, CheckError,
@@ -92,6 +92,10 @@ fn main_inner() -> Result<(), MainError> {
     for script in args.scripts {
         debug!("Setting up ScriptAction '{script}' on change.");
         actions.push(Box::new(ScriptAction::new(directory.clone(), script)));
+    }
+    if let Some(process) = args.process {
+        debug!("Setting up ProcessAction '{process}' on change.");
+        actions.push(Box::new(ProcessAction::new(directory.clone(), process)));
     }
 
     if actions.is_empty() {

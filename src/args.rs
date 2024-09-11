@@ -31,6 +31,10 @@ pub struct Args {
     #[options(long = "script")]
     pub scripts: Vec<String>,
 
+    /// A background process that will be restarted on change.
+    #[options()]
+    pub process: Option<String>,
+
     /// Try to pull only once. Useful for cronjobs.
     #[options(long = "once", no_short)]
     pub once: bool,

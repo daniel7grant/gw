@@ -2,6 +2,8 @@ use crate::context::Context;
 use mockall::automock;
 use thiserror::Error;
 
+/// An action to run in the background and restart a subprocess.
+pub mod process;
 /// An action to run a custom shell script.
 pub mod script;
 
