@@ -5,6 +5,7 @@
 ### Changed
 
 - Only change gitconfig (safe.directory) if there isn't one
+- Don't overwrite script environment, use already set variables
 
 ## [0.3.2] - 2024-08-26
 
