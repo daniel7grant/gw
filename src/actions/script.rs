@@ -2,7 +2,6 @@ use super::{Action, ActionError};
 use crate::context::Context;
 use duct_sh::sh_dangerous;
 use log::{debug, error};
-use std::collections::HashMap;
 use thiserror::Error;
 
 const ACTION_NAME: &str = "SCRIPT";
@@ -50,20 +49,19 @@ impl ScriptAction {
     }
 
     fn run_inner(&self, context: &Context) -> Result<String, ScriptError> {
-        let mut env: HashMap<String, String> = HashMap::from([
-            ("CI".to_string(), "true".to_string()),
-            ("GW_ACTION_NAME".to_string(), ACTION_NAME.to_string()),
-            ("GW_DIRECTORY".to_string(), self.directory.clone()),
-        ]);
-        env.extend(
-            context
-                .iter()
-                .map(|(k, v)| (format!("GW_{k}"), v.to_owned())),
-        );
-
         // We can run `sh_dangerous`, because it is on the user's computer.
-        let output = sh_dangerous(&self.command)
-            .full_env(env)
+        let mut command = sh_dangerous(&self.command);
+
+        // Set the environment variables
+        command = command.env("CI", "true");
+        command = command.env("GW_ACTION_NAME", ACTION_NAME);
+        command = command.env("GW_DIRECTORY", &self.directory);
+        for (key, value) in context {
+            command = command.env(format!("GW_{key}"), value);
+        }
+
+        // Start the shell script
+        let output = command
             .stderr_to_stdout()
             .stdout_capture()
             .dir(&self.directory)
@@ -114,6 +112,7 @@ impl Action for ScriptAction {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn it_should_create_new_script() {
@@ -149,6 +148,20 @@ mod tests {
         assert!(lines.contains(&"GW_CHECK_NAME=TEST-CHECK"));
         assert!(lines.contains(&"GW_ACTION_NAME=SCRIPT"));
         assert!(lines.contains(&"GW_DIRECTORY=."));
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_should_keep_the_already_set_env_vars() -> Result<(), ScriptError> {
+        std::env::set_var("GW_TEST", "GW_TEST");
+
+        let action = ScriptAction::new(String::from("."), String::from("printenv"));
+
+        let context: Context = HashMap::new();
+        let output = action.run_inner(&context)?;
+        let lines: Vec<&str> = output.lines().collect();
+        assert!(lines.contains(&"GW_TEST=GW_TEST"));
 
         Ok(())
     }
