@@ -29,5 +29,5 @@ pub enum ActionError {
 #[automock]
 pub trait Action {
     /// Initiate the action
-    fn run(&self, context: &Context) -> Result<(), ActionError>;
+    fn run(&mut self, context: &Context) -> Result<(), ActionError>;
 }
