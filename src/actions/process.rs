@@ -1,9 +1,14 @@
 use super::{Action, ActionError};
 use crate::context::Context;
-use duct::Handle;
+use duct::ReaderHandle;
 use duct_sh::sh_dangerous;
 use log::{debug, error};
-use std::cell::RefCell;
+use std::{
+    io::{BufRead, BufReader},
+    ops::Deref,
+    sync::Arc,
+    thread,
+};
 use thiserror::Error;
 
 const ACTION_NAME: &str = "PROCESS";
@@ -12,15 +17,18 @@ const ACTION_NAME: &str = "PROCESS";
 pub struct ProcessAction {
     directory: String,
     command: String,
-    process: RefCell<Handle>,
+    process: Arc<ReaderHandle>,
 }
 
 /// Custom error describing the error cases for the ProcessAction.
 #[derive(Debug, Error)]
 pub enum ProcessError {
     /// The underlying Rust command creation failed. The parameter contains the error.
-    #[error("the script cannot run: {0}")]
-    ProcessFailure(#[from] std::io::Error),
+    #[error("the script cannot start: {0}")]
+    StartFailure(String),
+    /// Killing the command failed.
+    #[error("the script cannot be stopped: {0}")]
+    StopFailure(String),
 }
 
 impl From<ProcessError> for ActionError {
@@ -30,11 +38,10 @@ impl From<ProcessError> for ActionError {
 }
 
 impl ProcessAction {
-    /// Creates a new process on a new thread.
+    /// Creates a new process in the background.
     pub fn new(directory: String, command: String) -> Self {
-        let process = RefCell::new(
-            ProcessAction::start_process(&command, &directory).expect("Cannot start process."),
-        );
+        let process =
+            ProcessAction::start_process(&command, &directory).expect("Cannot start process.");
 
         ProcessAction {
             directory,
@@ -43,7 +50,9 @@ impl ProcessAction {
         }
     }
 
-    fn start_process(command: &str, directory: &str) -> Result<Handle, ProcessError> {
+    fn start_process(command: &str, directory: &str) -> Result<Arc<ReaderHandle>, ProcessError> {
+        debug!("Starting process: {command} in directory {directory}.",);
+
         // We can run `sh_dangerous`, because it is on the user's computer.
         let mut command = sh_dangerous(command);
 
@@ -57,23 +66,33 @@ impl ProcessAction {
             .stderr_to_stdout()
             .stdout_capture()
             .dir(directory)
-            .unchecked()
-            .start()?;
+            .reader()
+            .map_err(|err| ProcessError::StartFailure(err.to_string()))?;
 
-        Ok(handle)
+        let return_handle = Arc::new(handle);
+        let thread_handle = return_handle.clone();
+        thread::spawn(move || {
+            let mut reader = BufReader::new(thread_handle.deref()).lines();
+            while let Some(Ok(line)) = reader.next() {
+                debug!("  {line}");
+            }
+        });
+
+        Ok(return_handle)
     }
 
     fn stop_process(&self) -> Result<(), ProcessError> {
-        self.process.borrow().kill()?;
+        debug!("Stopping process to restart.");
+        self.process
+            .kill()
+            .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
+
         Ok(())
     }
 
-    fn run_inner(&self) -> Result<(), ProcessError> {
+    fn run_inner(&mut self) -> Result<(), ProcessError> {
         self.stop_process()?;
-        self.process.replace(ProcessAction::start_process(
-            &self.command,
-            &self.directory,
-        )?);
+        self.process = ProcessAction::start_process(&self.command, &self.directory)?;
 
         Ok(())
     }
@@ -81,12 +100,7 @@ impl ProcessAction {
 
 impl Action for ProcessAction {
     /// Kills and restarts the subprocess.
-    fn run(&self, _context: &Context) -> Result<(), ActionError> {
-        debug!(
-            "Running script: {} in directory {}.",
-            self.command, self.directory
-        );
-
+    fn run(&mut self, _context: &Context) -> Result<(), ActionError> {
         match self.run_inner() {
             Ok(()) => {
                 debug!("Process restarted.");
@@ -105,10 +119,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_should_create_new_script() {
-        let action = ProcessAction::new(String::from("."), String::from("echo test"));
+    fn it_should_start_a_new_process() {
+        let action = ProcessAction::new(String::from("."), String::from("sleep 100"));
 
-        assert_eq!("echo test", action.command);
+        assert_eq!("sleep 100", action.command);
         assert_eq!(".", action.directory);
+    }
+
+    #[test]
+    fn it_should_restart_the_process_with_run_inner() -> Result<(), ProcessError> {
+        let mut action = ProcessAction::new(String::from("."), String::from("sleep 100"));
+
+        let first_pids = action.process.pids();
+        action.run_inner()?;
+        let second_pids = action.process.pids();
+
+        assert_ne!(
+            first_pids, second_pids,
+            "First and second run should have different pids."
+        );
+
+        Ok(())
     }
 }
