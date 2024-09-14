@@ -103,7 +103,7 @@ fn main_inner() -> Result<(), MainError> {
     }
 
     // Start the main script.
-    start(triggers, &mut check, &actions)?;
+    start(triggers, &mut check, &mut actions)?;
     Ok(())
 }
 
