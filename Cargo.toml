@@ -18,7 +18,7 @@ log = "0.4.20"
 mockall = "0.13.0"
 signal-hook = "0.3.17"
 simple_logger = "5.0.0"
-thiserror = "1.0.56"
+thiserror = "1.0.64"
 tiny_http = "0.12.0"
 
 [target.'cfg(any(target_env = "musl", target_arch = "arm", target_arch = "aarch64"))'.dependencies]
