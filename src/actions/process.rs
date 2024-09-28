@@ -1,11 +1,10 @@
 use super::{Action, ActionError};
 use crate::context::Context;
-use duct::ReaderHandle;
-use duct_sh::sh_dangerous;
-use log::{debug, error};
+use log::{debug, error, trace};
 use std::{
+    collections::HashMap,
     io::{BufRead, BufReader},
-    sync::Arc,
+    process::{Child, Command, Stdio},
     thread,
     time::Duration,
 };
@@ -28,49 +27,56 @@ pub struct ProcessParams {
 #[derive(Debug)]
 #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 pub struct Process {
-    handle: ReaderHandle,
+    child: Child,
     stop_signal: String,
     stop_timeout: Duration,
 }
 
 impl Process {
-    fn start(params: &ProcessParams) -> Result<Arc<Process>, ProcessError> {
-        // We can run `sh_dangerous`, because it is on the user's computer.
-        let mut command = sh_dangerous(&params.command);
+    fn start(params: &ProcessParams) -> Result<Process, ProcessError> {
+        let split_args = shlex::split(&params.command)
+            .ok_or(ProcessError::StopFailure(params.command.clone()))?;
+
+        let (command, args) = split_args
+            .split_first()
+            .ok_or(ProcessError::StopFailure(params.command.clone()))?;
+
+        trace!("Running command {} with args: {:?}", command, args);
 
         // Set the environment variables
-        command = command.env("CI", "true");
-        command = command.env("GW_ACTION_NAME", ACTION_NAME);
-        command = command.env("GW_DIRECTORY", &params.directory);
+        let vars: HashMap<&str, &str> = HashMap::from_iter(vec![
+            ("CI", "true"),
+            ("GW_ACTION_NAME", ACTION_NAME),
+            ("GW_DIRECTORY", &params.directory),
+        ]);
 
         // Start the shell script
-        let handle = command
-            .stderr_to_stdout()
-            .stdout_capture()
-            .dir(&params.directory)
-            .unchecked()
-            .reader()
+        let mut child = Command::new(command.clone())
+            .envs(vars)
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .current_dir(&params.directory)
+            .spawn()
             .map_err(|err| ProcessError::StartFailure(err.to_string()))?;
 
-        let process = Arc::new(Process {
-            handle,
-            stop_signal: params.stop_signal.clone(),
-            stop_timeout: params.stop_timeout,
-        });
-        let thread_process = process.clone();
+        let stdout = child.stdout.take().unwrap();
         thread::spawn(move || {
-            let thread_handle = &thread_process.handle;
-            let mut reader = BufReader::new(thread_handle).lines();
+            let mut reader = BufReader::new(stdout).lines();
             while let Some(Ok(line)) = reader.next() {
                 debug!("  {line}");
             }
         });
 
-        Ok(process)
+        Ok(Process {
+            child,
+            stop_signal: params.stop_signal.clone(),
+            stop_timeout: params.stop_timeout,
+        })
     }
 
     #[cfg(not(target_os = "windows"))]
-    fn stop(&self) -> Result<(), ProcessError> {
+    fn stop(&mut self) -> Result<(), ProcessError> {
         use duration_string::DurationString;
         use log::trace;
         use nix::sys::signal::kill;
@@ -79,18 +85,15 @@ impl Process {
         use std::{str::FromStr, thread::sleep};
 
         let signal = Signal::from_str(&self.stop_signal).unwrap();
-        let pids = self.handle.pids();
-        let pid = pids.first().unwrap();
-        let pid = Pid::from_raw(*pid as i32);
+        let pid = Pid::from_raw(self.child.id() as i32);
 
-        trace!("Trying stopping: Sending {} to {}.", signal, pid);
+        trace!("Trying to stop process: sending {} to {}.", signal, pid);
         kill(pid, signal).unwrap();
 
         let start_time = Instant::now();
         while start_time.elapsed() < self.stop_timeout {
-            if kill(pid, None).is_err() {
-                let output = self.handle.try_wait().unwrap().unwrap();
-                debug!("Process stopped gracefully with status {}.", output.status);
+            if let Ok(Some(output)) = self.child.try_wait() {
+                debug!("Process stopped gracefully with status {}.", output);
                 return Ok(());
             }
             sleep(Duration::from_secs(1));
@@ -101,7 +104,7 @@ impl Process {
             DurationString::from(self.stop_timeout).to_string()
         );
 
-        self.handle
+        self.child
             .kill()
             .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
 
@@ -111,7 +114,7 @@ impl Process {
     }
 
     #[cfg(target_os = "windows")]
-    fn stop(&self) -> Result<(), ProcessError> {
+    fn stop(&mut self) -> Result<(), ProcessError> {
         self.handle
             .kill()
             .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
@@ -126,12 +129,15 @@ impl Process {
 #[derive(Debug)]
 pub struct ProcessAction {
     params: ProcessParams,
-    process: Arc<Process>,
+    process: Process,
 }
 
 /// Custom error describing the error cases for the ProcessAction.
 #[derive(Debug, Error)]
 pub enum ProcessError {
+    /// The underlying Rust command creation failed. The parameter contains the error.
+    #[error("the command {0} cannot be parsed")]
+    CommandParseFailure(String),
     /// The underlying Rust command creation failed. The parameter contains the error.
     #[error("the script cannot start: {0}")]
     StartFailure(String),
@@ -201,7 +207,7 @@ mod tests {
             stop_signal: String::from("SIGTERM"),
             stop_timeout: Duration::from_secs(5),
         };
-        let action = ProcessAction::new(params);
+        let mut action = ProcessAction::new(params);
         action.process.stop().unwrap();
 
         assert_eq!("sleep 100", action.params.command);
@@ -219,13 +225,13 @@ mod tests {
         };
         let mut action = ProcessAction::new(params);
 
-        let first_pids = action.process.handle.pids();
+        let first_pid = action.process.child.id();
         action.run_inner()?;
-        let second_pids = action.process.handle.pids();
+        let second_pid = action.process.child.id();
         action.process.stop()?;
 
         assert_ne!(
-            first_pids, second_pids,
+            first_pid, second_pid,
             "First and second run should have different pids."
         );
 
@@ -242,7 +248,7 @@ mod tests {
 
         let stop_timeout = Duration::from_secs(5);
         let params = ProcessParams {
-            command: String::from("python -c 'import signal,time; signal.signal(signal.SIGUSR2, lambda x,y: print(\"trapped\")); time.sleep(1000)'"),
+            command: String::from("python -c 'import signal,time; signal.signal(signal.SIGUSR2, lambda x, y: print(x)); time.sleep(100)'"),
             directory: String::from("."),
             retries: 5,
             stop_signal: String::from("SIGUSR2"),
@@ -250,13 +256,13 @@ mod tests {
         };
         let mut action = ProcessAction::new(params);
 
-        let initial_pids = action.process.handle.pids();
+        let initial_pid = action.process.child.id();
         let initial_time = Instant::now();
         action.run_inner().expect("Restart failed");
 
-        let killed_pids = action.process.handle.pids();
+        let killed_pid = action.process.child.id();
         action.process.stop()?;
-        assert_ne!(initial_pids, killed_pids, "The process should be killed.");
+        assert_ne!(initial_pid, killed_pid, "The process should be killed.");
         assert!(
             initial_time.elapsed() >= stop_timeout,
             "The stop timeout should be elapsed."

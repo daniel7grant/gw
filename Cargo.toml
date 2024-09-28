@@ -18,6 +18,7 @@ libgit2-sys = "0.17.0"
 log = "0.4.20"
 mockall = "0.13.0"
 nix = { version = "0.29.0", features = ["signal"] }
+shlex = "1.3.0"
 signal-hook = "0.3.17"
 simple_logger = "5.0.0"
 thiserror = "1.0.56"
