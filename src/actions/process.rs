@@ -15,7 +15,7 @@ const ACTION_NAME: &str = "PROCESS";
 
 /// Parameters for the process.
 #[derive(Debug)]
-#[allow(dead_code)]
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 pub struct ProcessParams {
     pub directory: String,
     pub command: String,
@@ -26,8 +26,11 @@ pub struct ProcessParams {
 
 /// Struct that can handle the lifecycle of the process with restarting etc.
 #[derive(Debug)]
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 pub struct Process {
     handle: ReaderHandle,
+    stop_signal: String,
+    stop_timeout: Duration,
 }
 
 impl Process {
@@ -45,11 +48,14 @@ impl Process {
             .stderr_to_stdout()
             .stdout_capture()
             .dir(&params.directory)
+            .unchecked()
             .reader()
             .map_err(|err| ProcessError::StartFailure(err.to_string()))?;
 
         let process = Arc::new(Process {
             handle,
+            stop_signal: params.stop_signal.clone(),
+            stop_timeout: params.stop_timeout,
         });
         let thread_process = process.clone();
         thread::spawn(move || {
@@ -63,10 +69,54 @@ impl Process {
         Ok(process)
     }
 
+    #[cfg(not(target_os = "windows"))]
+    fn stop(&self) -> Result<(), ProcessError> {
+        use duration_string::DurationString;
+        use log::trace;
+        use nix::sys::signal::kill;
+        use nix::{sys::signal::Signal, unistd::Pid};
+        use std::time::Instant;
+        use std::{str::FromStr, thread::sleep};
+
+        let signal = Signal::from_str(&self.stop_signal).unwrap();
+        let pids = self.handle.pids();
+        let pid = pids.first().unwrap();
+        let pid = Pid::from_raw(*pid as i32);
+
+        trace!("Trying stopping: Sending {} to {}.", signal, pid);
+        kill(pid, signal).unwrap();
+
+        let start_time = Instant::now();
+        while start_time.elapsed() < self.stop_timeout {
+            if kill(pid, None).is_err() {
+                let output = self.handle.try_wait().unwrap().unwrap();
+                debug!("Process stopped gracefully with status {}.", output.status);
+                return Ok(());
+            }
+            sleep(Duration::from_secs(1));
+        }
+
+        debug!(
+            "Process didn't stop gracefully after {}. Killing process.",
+            DurationString::from(self.stop_timeout).to_string()
+        );
+
+        self.handle
+            .kill()
+            .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
+
+        debug!("Process killed successfully.");
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "windows")]
     fn stop(&self) -> Result<(), ProcessError> {
         self.handle
             .kill()
             .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
+
+        debug!("Process stopped successfully.");
 
         Ok(())
     }
@@ -138,6 +188,9 @@ impl Action for ProcessAction {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use log::LevelFilter;
+    use simple_logger::SimpleLogger;
+    use std::time::Instant;
 
     #[test]
     fn it_should_start_a_new_process() {
@@ -145,22 +198,23 @@ mod tests {
             command: String::from("sleep 100"),
             directory: String::from("."),
             retries: 5,
-            stop_signal: String::from("SIGINT"),
+            stop_signal: String::from("SIGTERM"),
             stop_timeout: Duration::from_secs(5),
         };
         let action = ProcessAction::new(params);
+        action.process.stop().unwrap();
 
         assert_eq!("sleep 100", action.params.command);
         assert_eq!(".", action.params.directory);
     }
 
     #[test]
-    fn it_should_restart_the_process_with_run_inner() -> Result<(), ProcessError> {
+    fn it_should_restart_the_process_gracefully() -> Result<(), ProcessError> {
         let params = ProcessParams {
             command: String::from("sleep 100"),
             directory: String::from("."),
             retries: 5,
-            stop_signal: String::from("SIGINT"),
+            stop_signal: String::from("SIGTERM"),
             stop_timeout: Duration::from_secs(5),
         };
         let mut action = ProcessAction::new(params);
@@ -168,10 +222,44 @@ mod tests {
         let first_pids = action.process.handle.pids();
         action.run_inner()?;
         let second_pids = action.process.handle.pids();
+        action.process.stop()?;
 
         assert_ne!(
             first_pids, second_pids,
             "First and second run should have different pids."
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_should_kill_the_process_if_graceful_not_working() -> Result<(), ProcessError> {
+        SimpleLogger::new()
+            .with_level(LevelFilter::Trace)
+            .env()
+            .init()
+            .unwrap();
+
+        let stop_timeout = Duration::from_secs(5);
+        let params = ProcessParams {
+            command: String::from("python -c 'import signal,time; signal.signal(signal.SIGUSR2, lambda x,y: print(\"trapped\")); time.sleep(1000)'"),
+            directory: String::from("."),
+            retries: 5,
+            stop_signal: String::from("SIGUSR2"),
+            stop_timeout,
+        };
+        let mut action = ProcessAction::new(params);
+
+        let initial_pids = action.process.handle.pids();
+        let initial_time = Instant::now();
+        action.run_inner().expect("Restart failed");
+
+        let killed_pids = action.process.handle.pids();
+        action.process.stop()?;
+        assert_ne!(initial_pids, killed_pids, "The process should be killed.");
+        assert!(
+            initial_time.elapsed() >= stop_timeout,
+            "The stop timeout should be elapsed."
         );
 
         Ok(())
