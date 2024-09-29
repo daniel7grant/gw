@@ -14,7 +14,7 @@ const ACTION_NAME: &str = "PROCESS";
 
 /// Parameters for the process.
 #[derive(Debug)]
-#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+#[cfg_attr(unix, allow(dead_code))]
 pub struct ProcessParams {
     pub directory: String,
     pub command: String,
@@ -25,7 +25,7 @@ pub struct ProcessParams {
 
 /// Struct that can handle the lifecycle of the process with restarting etc.
 #[derive(Debug)]
-#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+#[cfg_attr(unix, allow(dead_code))]
 pub struct Process {
     child: Child,
     stop_signal: String,
@@ -75,7 +75,7 @@ impl Process {
         })
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(unix)]
     fn stop(&mut self) -> Result<(), ProcessError> {
         use duration_string::DurationString;
         use log::trace;
@@ -114,7 +114,7 @@ impl Process {
         Ok(())
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(not(unix))]
     fn stop(&mut self) -> Result<(), ProcessError> {
         self.handle
             .kill()
