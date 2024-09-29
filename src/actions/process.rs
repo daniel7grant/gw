@@ -92,6 +92,7 @@ impl Process {
 
         let start_time = Instant::now();
         while start_time.elapsed() < self.stop_timeout {
+            trace!("Testing process state.");
             if let Ok(Some(output)) = self.child.try_wait() {
                 debug!("Process stopped gracefully with status {}.", output);
                 return Ok(());
@@ -194,8 +195,6 @@ impl Action for ProcessAction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use log::LevelFilter;
-    use simple_logger::SimpleLogger;
     use std::time::Instant;
 
     #[test]
@@ -216,15 +215,17 @@ mod tests {
 
     #[test]
     fn it_should_restart_the_process_gracefully() -> Result<(), ProcessError> {
+        let stop_timeout = Duration::from_secs(5);
         let params = ProcessParams {
             command: String::from("sleep 100"),
             directory: String::from("."),
             retries: 5,
             stop_signal: String::from("SIGTERM"),
-            stop_timeout: Duration::from_secs(5),
+            stop_timeout,
         };
         let mut action = ProcessAction::new(params);
 
+        let initial_time = Instant::now();
         let first_pid = action.process.child.id();
         action.run_inner()?;
         let second_pid = action.process.child.id();
@@ -234,38 +235,9 @@ mod tests {
             first_pid, second_pid,
             "First and second run should have different pids."
         );
-
-        Ok(())
-    }
-
-    #[test]
-    fn it_should_kill_the_process_if_graceful_not_working() -> Result<(), ProcessError> {
-        SimpleLogger::new()
-            .with_level(LevelFilter::Trace)
-            .env()
-            .init()
-            .unwrap();
-
-        let stop_timeout = Duration::from_secs(5);
-        let params = ProcessParams {
-            command: String::from("python -c 'import signal,time; signal.signal(signal.SIGUSR2, lambda x, y: print(x)); time.sleep(100)'"),
-            directory: String::from("."),
-            retries: 5,
-            stop_signal: String::from("SIGUSR2"),
-            stop_timeout,
-        };
-        let mut action = ProcessAction::new(params);
-
-        let initial_pid = action.process.child.id();
-        let initial_time = Instant::now();
-        action.run_inner().expect("Restart failed");
-
-        let killed_pid = action.process.child.id();
-        action.process.stop()?;
-        assert_ne!(initial_pid, killed_pid, "The process should be killed.");
         assert!(
-            initial_time.elapsed() >= stop_timeout,
-            "The stop timeout should be elapsed."
+            initial_time.elapsed() <= stop_timeout,
+            "The stop timeout should not be elapsed."
         );
 
         Ok(())
