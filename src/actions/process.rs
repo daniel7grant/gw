@@ -1,6 +1,7 @@
 use super::{Action, ActionError};
 use crate::context::Context;
 use log::{debug, error, trace};
+use nix::errno::Errno;
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader},
@@ -22,9 +23,15 @@ pub enum ProcessError {
     /// The underlying Rust command creation failed. The parameter contains the error.
     #[error("the script cannot start: {0}")]
     StartFailure(String),
-    /// Killing the command failed.
+    /// Stopping the command failed.
     #[error("the script cannot be stopped: {0}")]
     StopFailure(String),
+    /// Killing the command failed.
+    #[error("killing the process failed with error: {0}")]
+    KillFailed(#[from] Errno),
+    /// The lock on the child is poisoned: this means the thread failed while holding the lock.
+    #[error("the mutex is poisoned")]
+    MutexPoisoned,
 }
 
 impl From<ProcessError> for ActionError {
@@ -71,7 +78,7 @@ impl Process {
             ("GW_DIRECTORY", &params.directory),
         ]);
 
-        // Start the shell script
+        // Start the command
         let child = Command::new(command)
             .envs(vars)
             .args(args)
@@ -95,33 +102,47 @@ impl Process {
             let mut retries = max_retries;
 
             while retries > 0 {
-                let stdout = thread_child
+                if let Some(stdout) = thread_child
                     .lock()
-                    .unwrap()
-                    .as_mut()
-                    .unwrap()
-                    .stdout
-                    .take()
-                    .unwrap();
-                let mut reader = BufReader::new(stdout).lines();
-                while let Some(Ok(line)) = reader.next() {
-                    debug!("[{command_id}] {line}");
+                    .ok()
+                    .and_then(|mut child| child.as_mut().and_then(|child| child.stdout.take()))
+                {
+                    let mut reader = BufReader::new(stdout).lines();
+                    while let Some(Ok(line)) = reader.next() {
+                        debug!("[{command_id}] {line}");
+                    }
+
+                    debug!(
+                        "Process {} failed, retrying ({} retries left).",
+                        thread_params.command, retries
+                    );
+
+                    retries -= 1;
+                    sleep(Duration::from_millis(100));
+                    match Process::start_child(&thread_params) {
+                        Ok(new_child) => {
+                            if let Ok(mut unlocked_child) = thread_child.lock() {
+                                unlocked_child.replace(new_child);
+                            } else {
+                                error!("Failed locking the child, the mutex might be poisoned.");
+                            }
+                        }
+                        Err(err) => {
+                            error!("Failed retrying the process: {err}.");
+                            break;
+                        }
+                    }
+                } else {
+                    error!("Failed taking the stdout of process.");
+                    break;
                 }
-
-                debug!(
-                    "Process {} failed, retrying ({} retries left).",
-                    thread_params.command, retries
-                );
-
-                retries -= 1;
-                sleep(Duration::from_millis(100));
-                thread_child
-                    .lock()
-                    .unwrap()
-                    .replace(Process::start_child(&thread_params).unwrap());
             }
 
-            thread_child.lock().unwrap().take();
+            if let Ok(mut unlocked_child) = thread_child.lock() {
+                unlocked_child.take();
+            } else {
+                error!("Failed locking the child, the mutex might be poisoned.");
+            }
 
             error!(
                 "Process {} failed more than {} times, we are not retrying anymore.",
@@ -145,12 +166,17 @@ impl Process {
         use std::time::Instant;
         use std::{str::FromStr, thread::sleep};
 
-        if let Some(child) = self.child.lock().unwrap().as_mut() {
-            let signal = Signal::from_str(&self.stop_signal).unwrap();
+        if let Some(child) = self
+            .child
+            .lock()
+            .map_err(|_| ProcessError::MutexPoisoned)?
+            .as_mut()
+        {
+            let signal = Signal::from_str(&self.stop_signal)?;
             let pid = Pid::from_raw(child.id() as i32);
 
             trace!("Trying to stop process: sending {} to {}.", signal, pid);
-            kill(pid, signal).unwrap();
+            kill(pid, signal)?;
 
             let start_time = Instant::now();
             while start_time.elapsed() < self.stop_timeout {
@@ -181,7 +207,12 @@ impl Process {
 
     #[cfg(not(unix))]
     fn stop(&mut self) -> Result<(), ProcessError> {
-        if let Some(child) = self.child.lock().unwrap().as_mut() {
+        if let Some(child) = self
+            .child
+            .lock()
+            .map_err(|_| ProcessError::MutexPoisoned)?
+            .as_mut()
+        {
             self.handle
                 .kill()
                 .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
@@ -248,7 +279,7 @@ mod tests {
     use thread::sleep;
 
     #[test]
-    fn it_should_start_a_new_process() {
+    fn it_should_start_a_new_process() -> Result<(), ProcessError> {
         let params = ProcessParams {
             command: String::from("sleep 100"),
             directory: String::from("."),
@@ -257,10 +288,12 @@ mod tests {
             stop_timeout: Duration::from_secs(5),
         };
         let mut action = ProcessAction::new(params);
-        action.process.stop().unwrap();
+        action.process.stop()?;
 
         assert_eq!("sleep 100", action.params.command);
         assert_eq!(".", action.params.directory);
+
+        Ok(())
     }
 
     #[test]
