@@ -1,11 +1,12 @@
 use super::{Action, ActionError};
 use crate::context::Context;
 use log::{debug, error, trace};
-use nix::errno::Errno;
+use nix::{errno::Errno, sys::signal::Signal};
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader},
     process::{Child, Command, Stdio},
+    str::FromStr,
     sync::{Arc, Mutex},
     thread::{self, sleep},
     time::Duration,
@@ -15,11 +16,14 @@ use thiserror::Error;
 const ACTION_NAME: &str = "PROCESS";
 
 /// Custom error describing the error cases for the ProcessAction.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum ProcessError {
-    /// The underlying Rust command creation failed. The parameter contains the error.
-    #[error("the command {0} cannot be parsed")]
+    /// The command is invalid (usually mismatched quotations etc.).
+    #[error("the command {0:?} cannot be parsed")]
     CommandParseFailure(String),
+    /// Signal is not a valid UNIX signal.
+    #[error("the signal {0} is not valid")]
+    SignalParseFailure(String),
     /// The underlying Rust command creation failed. The parameter contains the error.
     #[error("the script cannot start: {0}")]
     StartFailure(String),
@@ -36,7 +40,15 @@ pub enum ProcessError {
 
 impl From<ProcessError> for ActionError {
     fn from(value: ProcessError) -> Self {
-        ActionError::FailedAction(value.to_string())
+        match value {
+            ProcessError::CommandParseFailure(_) | ProcessError::SignalParseFailure(_) => {
+                ActionError::Misconfigured(value.to_string())
+            }
+            ProcessError::StartFailure(_)
+            | ProcessError::StopFailure(_)
+            | ProcessError::KillFailed(_)
+            | ProcessError::MutexPoisoned => ActionError::FailedAction(value.to_string()),
+        }
     }
 }
 
@@ -44,11 +56,54 @@ impl From<ProcessError> for ActionError {
 #[derive(Debug, Clone)]
 #[cfg_attr(unix, allow(dead_code))]
 pub struct ProcessParams {
-    pub directory: String,
-    pub command: String,
-    pub retries: u32,
-    pub stop_signal: String,
-    pub stop_timeout: Duration,
+    directory: String,
+    command: String,
+    args: Vec<String>,
+    retries: u32,
+    stop_signal: Signal,
+    stop_timeout: Duration,
+}
+
+impl ProcessParams {
+    pub fn new(original_command: String, directory: String) -> Result<ProcessParams, ProcessError> {
+        let split_args = shlex::split(&original_command)
+            .ok_or(ProcessError::CommandParseFailure(original_command.clone()))?;
+
+        let (command, args) = split_args
+            .split_first()
+            .ok_or(ProcessError::CommandParseFailure(original_command.clone()))?;
+
+        trace!(
+            "Parsing {:?} to command {:?} and args {:?}.",
+            &original_command,
+            &command,
+            &args
+        );
+
+        Ok(ProcessParams {
+            directory,
+            command: command.clone(),
+            args: args.to_vec(),
+            retries: 5,
+            stop_signal: Signal::SIGTERM,
+            stop_timeout: Duration::from_secs(1),
+        })
+    }
+
+    pub fn set_retries(&mut self, retries: u32) {
+        self.retries = retries;
+    }
+
+    pub fn set_stop_signal(mut self, stop_signal: String) -> Result<(), ProcessError> {
+        self.stop_signal = Signal::from_str(&stop_signal)
+            .map_err(|_| ProcessError::SignalParseFailure(stop_signal))?;
+
+        Ok(())
+    }
+
+    pub fn set_stop_timeout(mut self, stop_timeout: Duration) {
+        self.stop_timeout = stop_timeout;
+    }
 }
 
 /// Struct that can handle the lifecycle of the process with restarting etc.
@@ -56,20 +111,17 @@ pub struct ProcessParams {
 #[cfg_attr(unix, allow(dead_code))]
 pub struct Process {
     child: Arc<Mutex<Option<Child>>>,
-    stop_signal: String,
+    stop_signal: Signal,
     stop_timeout: Duration,
 }
 
 impl Process {
     fn start_child(params: &ProcessParams) -> Result<Child, ProcessError> {
-        let split_args = shlex::split(&params.command)
-            .ok_or(ProcessError::StopFailure(params.command.clone()))?;
-
-        let (command, args) = split_args
-            .split_first()
-            .ok_or(ProcessError::StopFailure(params.command.clone()))?;
-
-        trace!("Running command {} with args: {:?}", command, args);
+        trace!(
+            "Running command {:?} with args: {:?}.",
+            params.command,
+            params.args
+        );
 
         // Set the environment variables
         let vars: HashMap<&str, &str> = HashMap::from_iter(vec![
@@ -79,9 +131,9 @@ impl Process {
         ]);
 
         // Start the command
-        let child = Command::new(command)
+        let child = Command::new(&params.command)
             .envs(vars)
-            .args(args)
+            .args(&params.args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .current_dir(&params.directory)
@@ -113,7 +165,7 @@ impl Process {
                     }
 
                     debug!(
-                        "Process {} failed, retrying ({} retries left).",
+                        "Process {:?} failed, retrying ({} retries left).",
                         thread_params.command, retries
                     );
 
@@ -145,26 +197,26 @@ impl Process {
             }
 
             error!(
-                "Process {} failed more than {} times, we are not retrying anymore.",
+                "Process {:?} failed more than {} times, we are not retrying anymore.",
                 thread_params.command, max_retries,
             );
         });
 
         Ok(Process {
             child,
-            stop_signal: params.stop_signal.clone(),
+            stop_signal: params.stop_signal,
             stop_timeout: params.stop_timeout,
         })
     }
 
-    #[cfg(unix)]
+    #[cfg(not(unix))]
     fn stop(&mut self) -> Result<(), ProcessError> {
         use duration_string::DurationString;
         use log::trace;
         use nix::sys::signal::kill;
-        use nix::{sys::signal::Signal, unistd::Pid};
+        use nix::unistd::Pid;
+        use std::thread::sleep;
         use std::time::Instant;
-        use std::{str::FromStr, thread::sleep};
 
         if let Some(child) = self
             .child
@@ -172,11 +224,14 @@ impl Process {
             .map_err(|_| ProcessError::MutexPoisoned)?
             .as_mut()
         {
-            let signal = Signal::from_str(&self.stop_signal)?;
             let pid = Pid::from_raw(child.id() as i32);
 
-            trace!("Trying to stop process: sending {} to {}.", signal, pid);
-            kill(pid, signal)?;
+            trace!(
+                "Trying to stop process: sending {} to {}.",
+                self.stop_signal,
+                pid
+            );
+            kill(pid, self.stop_signal)?;
 
             let start_time = Instant::now();
             while start_time.elapsed() < self.stop_timeout {
@@ -205,7 +260,7 @@ impl Process {
         Ok(())
     }
 
-    #[cfg(not(unix))]
+    #[cfg(unix)]
     fn stop(&mut self) -> Result<(), ProcessError> {
         if let Some(child) = self
             .child
@@ -213,7 +268,7 @@ impl Process {
             .map_err(|_| ProcessError::MutexPoisoned)?
             .as_mut()
         {
-            self.handle
+            child
                 .kill()
                 .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
 
@@ -235,14 +290,14 @@ pub struct ProcessAction {
 
 impl ProcessAction {
     /// Creates a new process in the background.
-    pub fn new(params: ProcessParams) -> Self {
+    pub fn new(params: ProcessParams) -> Result<ProcessAction, ProcessError> {
         debug!(
-            "Starting process: {} in directory {}.",
+            "Starting process: {:?} in directory {}.",
             params.command, params.directory
         );
-        let process = Process::start(&params).expect("Cannot start process.");
+        let process = Process::start(&params)?;
 
-        ProcessAction { params, process }
+        Ok(ProcessAction { params, process })
     }
 
     fn run_inner(&mut self) -> Result<(), ProcessError> {
@@ -280,18 +335,40 @@ mod tests {
 
     #[test]
     fn it_should_start_a_new_process() -> Result<(), ProcessError> {
-        let params = ProcessParams {
-            command: String::from("sleep 100"),
-            directory: String::from("."),
-            retries: 5,
-            stop_signal: String::from("SIGTERM"),
-            stop_timeout: Duration::from_secs(5),
-        };
-        let mut action = ProcessAction::new(params);
+        let params = ProcessParams::new(String::from("sleep 100"), String::from("."))?;
+        let mut action = ProcessAction::new(params)?;
         action.process.stop()?;
 
-        assert_eq!("sleep 100", action.params.command);
+        assert_eq!("sleep", action.params.command);
+        assert_eq!(vec!["100"], action.params.args);
         assert_eq!(".", action.params.directory);
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_should_fail_if_command_is_invalid() -> Result<(), ProcessError> {
+        let failing_command = String::from("sleep '100");
+        let failing_params = ProcessParams::new(failing_command.clone(), String::from("."));
+
+        assert_eq!(
+            ProcessError::CommandParseFailure(failing_command),
+            failing_params.unwrap_err(),
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_should_fail_if_signal_is_invalid() -> Result<(), ProcessError> {
+        let failing_signal = String::from("SIGWTF");
+        let failing_params = ProcessParams::new(String::from("sleep 100"), String::from("."))?
+            .set_stop_signal(failing_signal.clone());
+
+        assert_eq!(
+            ProcessError::SignalParseFailure(failing_signal),
+            failing_params.unwrap_err(),
+        );
 
         Ok(())
     }
@@ -299,14 +376,8 @@ mod tests {
     #[test]
     fn it_should_restart_the_process_gracefully() -> Result<(), ProcessError> {
         let stop_timeout = Duration::from_secs(5);
-        let params = ProcessParams {
-            command: String::from("sleep 100"),
-            directory: String::from("."),
-            retries: 5,
-            stop_signal: String::from("SIGTERM"),
-            stop_timeout,
-        };
-        let mut action = ProcessAction::new(params);
+        let params = ProcessParams::new(String::from("sleep 100"), String::from("."))?;
+        let mut action = ProcessAction::new(params)?;
 
         let initial_time = Instant::now();
         let first_pid = action.process.child.lock().unwrap().as_ref().unwrap().id();
@@ -328,15 +399,8 @@ mod tests {
 
     #[test]
     fn it_should_retry_the_process_if_it_exits_until_the_retry_count() -> Result<(), ProcessError> {
-        let stop_timeout = Duration::from_secs(5);
-        let params = ProcessParams {
-            command: String::from("echo 1"),
-            directory: String::from("."),
-            retries: 5,
-            stop_signal: String::from("SIGTERM"),
-            stop_timeout,
-        };
-        let action = ProcessAction::new(params);
+        let params = ProcessParams::new(String::from("false"), String::from("."))?;
+        let action = ProcessAction::new(params)?;
 
         sleep(Duration::from_secs(1));
 
@@ -350,17 +414,10 @@ mod tests {
     #[test]
     fn it_should_reset_the_retries() -> Result<(), ProcessError> {
         let tailed_file = "./test_directories/tailed_file";
-        let stop_timeout = Duration::from_secs(5);
-        let params = ProcessParams {
-            command: format!("tail -f {tailed_file}"),
-            directory: String::from("."),
-            retries: 5,
-            stop_signal: String::from("SIGTERM"),
-            stop_timeout,
-        };
+        let params = ProcessParams::new(format!("tail -f {tailed_file}"), String::from("."))?;
 
         // First time it should fail, because the file doesn't exist yet
-        let mut action = ProcessAction::new(params);
+        let mut action = ProcessAction::new(params)?;
 
         // Create the file and restart it quickly to see the retries reset
         fs::write(tailed_file, "").unwrap();
