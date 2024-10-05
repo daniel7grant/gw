@@ -4,12 +4,8 @@ use log::{debug, error, trace};
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader},
-    ops::DerefMut,
     process::{Child, Command, Stdio},
-    sync::{
-        mpsc::{channel, Sender},
-        Arc, Mutex,
-    },
+    sync::{Arc, Mutex},
     thread::{self, sleep},
     time::Duration,
 };
@@ -52,14 +48,13 @@ pub struct ProcessParams {
 #[derive(Debug)]
 #[cfg_attr(unix, allow(dead_code))]
 pub struct Process {
-    child: Child,
+    child: Arc<Mutex<Option<Child>>>,
     stop_signal: String,
     stop_timeout: Duration,
-    retries: u32,
 }
 
 impl Process {
-    fn start(params: &ProcessParams, tx: Sender<u32>) -> Result<Process, ProcessError> {
+    fn start_child(params: &ProcessParams) -> Result<Child, ProcessError> {
         let split_args = shlex::split(&params.command)
             .ok_or(ProcessError::StopFailure(params.command.clone()))?;
 
@@ -77,7 +72,7 @@ impl Process {
         ]);
 
         // Start the shell script
-        let mut child = Command::new(command.clone())
+        let child = Command::new(command)
             .envs(vars)
             .args(args)
             .stdout(Stdio::piped())
@@ -86,22 +81,58 @@ impl Process {
             .spawn()
             .map_err(|err| ProcessError::StartFailure(err.to_string()))?;
 
-        let stdout = child.stdout.take().unwrap();
-        let command_id = command.clone();
-        let retries = params.retries;
+        Ok(child)
+    }
+
+    fn start(params: &ProcessParams) -> Result<Process, ProcessError> {
+        let child = Arc::new(Mutex::new(Some(Process::start_child(params)?)));
+
+        let command_id = params.command.clone();
+        let max_retries = params.retries;
+        let thread_params = params.clone();
+        let thread_child = child.clone();
         thread::spawn(move || {
-            let mut reader = BufReader::new(stdout).lines();
-            while let Some(Ok(line)) = reader.next() {
-                debug!("[{command_id}] {line}");
+            let mut retries = max_retries;
+
+            while retries > 0 {
+                let stdout = thread_child
+                    .lock()
+                    .unwrap()
+                    .as_mut()
+                    .unwrap()
+                    .stdout
+                    .take()
+                    .unwrap();
+                let mut reader = BufReader::new(stdout).lines();
+                while let Some(Ok(line)) = reader.next() {
+                    debug!("[{command_id}] {line}");
+                }
+
+                debug!(
+                    "Process {} failed, retrying ({} retries left).",
+                    thread_params.command, retries
+                );
+
+                retries -= 1;
+                sleep(Duration::from_millis(100));
+                thread_child
+                    .lock()
+                    .unwrap()
+                    .replace(Process::start_child(&thread_params).unwrap());
             }
-            tx.send(retries).unwrap();
+
+            thread_child.lock().unwrap().take();
+
+            error!(
+                "Process {} failed more than {} times, we are not retrying anymore.",
+                thread_params.command, max_retries,
+            );
         });
 
         Ok(Process {
             child,
             stop_signal: params.stop_signal.clone(),
             stop_timeout: params.stop_timeout,
-            retries,
         })
     }
 
@@ -114,43 +145,51 @@ impl Process {
         use std::time::Instant;
         use std::{str::FromStr, thread::sleep};
 
-        let signal = Signal::from_str(&self.stop_signal).unwrap();
-        let pid = Pid::from_raw(self.child.id() as i32);
+        if let Some(child) = self.child.lock().unwrap().as_mut() {
+            let signal = Signal::from_str(&self.stop_signal).unwrap();
+            let pid = Pid::from_raw(child.id() as i32);
 
-        trace!("Trying to stop process: sending {} to {}.", signal, pid);
-        kill(pid, signal).unwrap();
+            trace!("Trying to stop process: sending {} to {}.", signal, pid);
+            kill(pid, signal).unwrap();
 
-        let start_time = Instant::now();
-        while start_time.elapsed() < self.stop_timeout {
-            trace!("Testing process state.");
-            if let Ok(Some(output)) = self.child.try_wait() {
-                debug!("Process stopped gracefully with status {}.", output);
-                return Ok(());
+            let start_time = Instant::now();
+            while start_time.elapsed() < self.stop_timeout {
+                trace!("Testing process state.");
+                if let Ok(Some(output)) = child.try_wait() {
+                    debug!("Process stopped gracefully with status {}.", output);
+                    return Ok(());
+                }
+                sleep(Duration::from_secs(1));
             }
-            sleep(Duration::from_secs(1));
+
+            debug!(
+                "Process didn't stop gracefully after {}. Killing process.",
+                DurationString::from(self.stop_timeout).to_string()
+            );
+
+            child
+                .kill()
+                .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
+
+            debug!("Process killed successfully.");
+        } else {
+            debug!("Cannot restart process, because it has already failed.");
         }
-
-        debug!(
-            "Process didn't stop gracefully after {}. Killing process.",
-            DurationString::from(self.stop_timeout).to_string()
-        );
-
-        self.child
-            .kill()
-            .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
-
-        debug!("Process killed successfully.");
 
         Ok(())
     }
 
     #[cfg(not(unix))]
     fn stop(&mut self) -> Result<(), ProcessError> {
-        self.handle
-            .kill()
-            .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
+        if let Some(child) = self.child.lock().unwrap().as_mut() {
+            self.handle
+                .kill()
+                .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
 
-        debug!("Process stopped successfully.");
+            debug!("Process stopped successfully.");
+        } else {
+            debug!("Cannot restart process, because it has already failed.");
+        }
 
         Ok(())
     }
@@ -159,9 +198,8 @@ impl Process {
 /// An action to run in the background and restart a subprocess.
 #[derive(Debug)]
 pub struct ProcessAction {
-    tx: Sender<u32>,
     params: ProcessParams,
-    process: Arc<Mutex<Option<Process>>>,
+    process: Process,
 }
 
 impl ProcessAction {
@@ -171,55 +209,17 @@ impl ProcessAction {
             "Starting process: {} in directory {}.",
             params.command, params.directory
         );
-        let (tx, rx) = channel();
-        let process = Arc::new(Mutex::new(Some(
-            Process::start(&params, tx.clone()).expect("Cannot start process."),
-        )));
+        let process = Process::start(&params).expect("Cannot start process.");
 
-        let process_action = ProcessAction {
-            params: params.clone(),
-            process: process.clone(),
-            tx: tx.clone(),
-        };
-
-        let max_retries = params.retries;
-        thread::spawn(move || {
-            for previous_retries in rx {
-                let mut process_container = process.lock().unwrap();
-                let mut new_params = params.clone();
-                new_params.retries = previous_retries - 1;
-                if new_params.retries > 0 {
-                    debug!(
-                        "Process {} failed, retrying ({} retries left).",
-                        params.command, new_params.retries
-                    );
-                    sleep(Duration::from_millis(100));
-                    process_container.replace(Process::start(&new_params, tx.clone()).unwrap());
-                } else {
-                    error!(
-                        "Process {} failed more than {} times, we are not retrying anymore.",
-                        params.command, max_retries,
-                    );
-                    process_container.take();
-                }
-            }
-        });
-
-        process_action
+        ProcessAction { params, process }
     }
 
     fn run_inner(&mut self) -> Result<(), ProcessError> {
-        let mut process_container = self.process.lock().unwrap();
-        if let Some(process) = process_container.deref_mut() {
-            debug!("Restarting process.");
-            process
-                .stop()
-                .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
-        } else {
-            debug!("Cannot restart process, because it has already failed.");
-        }
-
-        process_container.replace(Process::start(&self.params, self.tx.clone())?);
+        debug!("Restarting process.");
+        self.process
+            .stop()
+            .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
+        self.process = Process::start(&self.params)?;
 
         Ok(())
     }
@@ -256,15 +256,8 @@ mod tests {
             stop_signal: String::from("SIGTERM"),
             stop_timeout: Duration::from_secs(5),
         };
-        let action = ProcessAction::new(params);
-        action
-            .process
-            .lock()
-            .unwrap()
-            .as_mut()
-            .unwrap()
-            .stop()
-            .unwrap();
+        let mut action = ProcessAction::new(params);
+        action.process.stop().unwrap();
 
         assert_eq!("sleep 100", action.params.command);
         assert_eq!(".", action.params.directory);
@@ -283,10 +276,10 @@ mod tests {
         let mut action = ProcessAction::new(params);
 
         let initial_time = Instant::now();
-        let first_pid = action.process.lock().unwrap().as_ref().unwrap().child.id();
+        let first_pid = action.process.child.lock().unwrap().as_ref().unwrap().id();
         action.run_inner()?;
-        let second_pid = action.process.lock().unwrap().as_ref().unwrap().child.id();
-        action.process.lock().unwrap().as_mut().unwrap().stop()?;
+        let second_pid = action.process.child.lock().unwrap().as_ref().unwrap().id();
+        action.process.stop()?;
 
         assert_ne!(
             first_pid, second_pid,
@@ -314,9 +307,9 @@ mod tests {
 
         sleep(Duration::from_secs(1));
 
-        let is_process_exited = action.process.lock().unwrap().as_ref().is_none();
+        let is_child_exited = action.process.child.lock().unwrap().as_ref().is_none();
 
-        assert!(is_process_exited, "The process should exit.");
+        assert!(is_child_exited, "The child should exit.");
 
         Ok(())
     }
@@ -340,13 +333,10 @@ mod tests {
         fs::write(tailed_file, "").unwrap();
         action.run_inner()?;
 
-        let is_process_running = action.process.lock().unwrap().as_ref().is_some();
-        assert!(is_process_running, "The process should be running.");
+        let is_child_running = action.process.child.lock().unwrap().as_ref().is_some();
+        assert!(is_child_running, "The child should be running.");
 
-        let retries = action.process.lock().unwrap().as_ref().unwrap().retries;
-        assert_eq!(retries, 5);
-
-        action.process.lock().unwrap().as_mut().unwrap().stop()?;
+        action.process.stop()?;
         fs::remove_file(tailed_file).unwrap();
 
         Ok(())
