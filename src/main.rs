@@ -101,9 +101,19 @@ fn main_inner() -> Result<(), MainError> {
     }
     if let Some(process) = args.process {
         debug!("Setting up ProcessAction {process:?} on change.");
-        let process_params =
+        let mut process_params =
             ProcessParams::new(process, directory.clone()).map_err(ActionError::from)?;
 
+        if let Some(retries) = args.process_retries {
+            process_params.set_retries(retries);
+        }
+        if let Some(stop_signal) = args.stop_signal {
+            process_params.set_stop_signal(stop_signal).map_err(ActionError::from)?;
+        }
+        if let Some(stop_timeout) = args.stop_timeout {
+            process_params.set_stop_timeout(stop_timeout.into());
+        }
+ 
         actions.push(Box::new(
             ProcessAction::new(process_params).map_err(ActionError::from)?,
         ));

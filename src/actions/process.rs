@@ -84,9 +84,9 @@ impl ProcessParams {
             directory,
             command: command.clone(),
             args: args.to_vec(),
-            retries: 5,
+            retries: 0,
             stop_signal: Signal::SIGTERM,
-            stop_timeout: Duration::from_secs(1),
+            stop_timeout: Duration::from_secs(10),
         })
     }
 
@@ -94,14 +94,14 @@ impl ProcessParams {
         self.retries = retries;
     }
 
-    pub fn set_stop_signal(mut self, stop_signal: String) -> Result<(), ProcessError> {
+    pub fn set_stop_signal(&mut self, stop_signal: String) -> Result<(), ProcessError> {
         self.stop_signal = Signal::from_str(&stop_signal)
             .map_err(|_| ProcessError::SignalParseFailure(stop_signal))?;
 
         Ok(())
     }
 
-    pub fn set_stop_timeout(mut self, stop_timeout: Duration) {
+    pub fn set_stop_timeout(&mut self, stop_timeout: Duration) {
         self.stop_timeout = stop_timeout;
     }
 }
@@ -151,9 +151,9 @@ impl Process {
         let thread_params = params.clone();
         let thread_child = child.clone();
         thread::spawn(move || {
-            let mut retries = max_retries;
+            let mut tries = max_retries + 1;
 
-            while retries > 0 {
+            loop {
                 if let Some(stdout) = thread_child
                     .lock()
                     .ok()
@@ -164,12 +164,16 @@ impl Process {
                         debug!("[{command_id}] {line}");
                     }
 
+                    tries -= 1;
+                    if tries == 0 {
+                        break;
+                    }
+
                     debug!(
                         "Process {:?} failed, retrying ({} retries left).",
-                        thread_params.command, retries
+                        thread_params.command, tries
                     );
 
-                    retries -= 1;
                     sleep(Duration::from_millis(100));
                     match Process::start_child(&thread_params) {
                         Ok(new_child) => {
@@ -197,8 +201,13 @@ impl Process {
             }
 
             error!(
-                "Process {:?} failed more than {} times, we are not retrying anymore.",
-                thread_params.command, max_retries,
+                "Process {:?} {}, we are not retrying anymore.",
+                thread_params.command,
+                if max_retries > 0 {
+                    format!("failed more than {max_retries} times")
+                } else {
+                    "failed with 0 retries".to_string()
+                },
             );
         });
 
