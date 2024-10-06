@@ -70,12 +70,12 @@ You can add multiple scripts, which will run one after another. Use these script
 
 ### Run subprocess, restart on pull
 
-It is often enough to run scripts, but many times you also want to maintain a long-running process e.g. for web services. `gw` can help you with this, using the `-p` flag. This will start a process in the background and restart it on pull.
+It is often enough to run scripts, but many times you also want to maintain a long-running process e.g. for web services. `gw` can help you with this, using the `--process` or `-p` flag. This will start a process in the background and restart it on pull.
 
 For example starting a python web server:
 
 ```sh
-$ gw . -v -p "python -m http.server"
+$ gw . -v --process "python -m http.server"
 # ...
 2024-10-06T21:58:21.306Z DEBUG [gw] Setting up ProcessAction "python -m http.server" on change.
 2024-10-06T21:58:21.306Z DEBUG [gw_bin::actions::process] Starting process: "python" in directory /home/grant/Development/grant/gw.
