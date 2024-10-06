@@ -12,7 +12,7 @@ You can use `gw` to help in local development. You can pull your repository cont
 Simply set the path to your repository:
 
 ```sh
-gw /path/to/repo -s 'npm run build' -s 'npx pm2 restart'
+gw /path/to/repo
 ```
 
 You can use the `notify-send` command to popup notifications on Linux, let's use it to show if somebody commited to our branch.

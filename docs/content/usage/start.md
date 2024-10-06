@@ -68,6 +68,22 @@ $ gw . -v --script 'cat DATETIME'
 
 You can add multiple scripts, which will run one after another. Use these scripts to build source files, restarts deployments and anything else that you can imagine.
 
+### Run subprocess, restart on pull
+
+It is often enough to run scripts, but many times you also want to maintain a long-running process e.g. for web services. `gw` can help you with this, using the `-p` flag. This will start a process in the background and restart it on pull.
+
+For example starting a python web server:
+
+```sh
+$ gw . -v -p "python -m http.server"
+# ...
+2024-10-06T21:58:21.306Z DEBUG [gw] Setting up ProcessAction "python -m http.server" on change.
+2024-10-06T21:58:21.306Z DEBUG [gw_bin::actions::process] Starting process: "python" in directory /home/grant/Development/grant/gw.
+2024-10-06T21:58:56.211Z DEBUG [gw_bin::actions::process] [python] Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+```
+
+This will run a python process in the background and stop and start it again if a git pull happened. Just wrap your deployment script with `gw` and see it gets updated every time you push to git.
+
 ## Next steps
 
 If you like `gw`, there are multiple ways to use it for real-life use-cases.
