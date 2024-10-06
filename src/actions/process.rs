@@ -1,11 +1,10 @@
 use super::{Action, ActionError};
 use crate::context::Context;
+use duct::ReaderHandle;
 use log::{debug, error, trace};
 use nix::{errno::Errno, sys::signal::Signal};
 use std::{
-    collections::HashMap,
     io::{BufRead, BufReader},
-    process::{Child, Command, Stdio},
     str::FromStr,
     sync::{Arc, Mutex},
     thread::{self, sleep},
@@ -110,34 +109,28 @@ impl ProcessParams {
 #[derive(Debug)]
 #[cfg_attr(unix, allow(dead_code))]
 pub struct Process {
-    child: Arc<Mutex<Option<Child>>>,
+    child: Arc<Mutex<Option<ReaderHandle>>>,
     stop_signal: Signal,
     stop_timeout: Duration,
 }
 
 impl Process {
-    fn start_child(params: &ProcessParams) -> Result<Child, ProcessError> {
+    fn start_child(params: &ProcessParams) -> Result<ReaderHandle, ProcessError> {
         trace!(
             "Running command {:?} with args: {:?}.",
             params.command,
             params.args
         );
 
-        // Set the environment variables
-        let vars: HashMap<&str, &str> = HashMap::from_iter(vec![
-            ("CI", "true"),
-            ("GW_ACTION_NAME", ACTION_NAME),
-            ("GW_DIRECTORY", &params.directory),
-        ]);
-
-        // Start the command
-        let child = Command::new(&params.command)
-            .envs(vars)
-            .args(&params.args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .current_dir(&params.directory)
-            .spawn()
+        // Create child
+        let child = duct::cmd(&params.command, &params.args)
+            .dir(&params.directory)
+            .stderr_to_stdout()
+            .env("CI", "true")
+            .env("GW_ACTION_NAME", ACTION_NAME)
+            .env("GW_DIRECTORY", &params.directory)
+            .unchecked()
+            .reader()
             .map_err(|err| ProcessError::StartFailure(err.to_string()))?;
 
         Ok(child)
@@ -154,11 +147,7 @@ impl Process {
             let mut tries = max_retries + 1;
 
             loop {
-                if let Some(stdout) = thread_child
-                    .lock()
-                    .ok()
-                    .and_then(|mut child| child.as_mut().and_then(|child| child.stdout.take()))
-                {
+                if let Some(stdout) = thread_child.lock().unwrap().as_ref() {
                     let mut reader = BufReader::new(stdout).lines();
                     while let Some(Ok(line)) = reader.next() {
                         debug!("[{command_id}] {line}");
@@ -218,7 +207,7 @@ impl Process {
         })
     }
 
-    #[cfg(not(unix))]
+    #[cfg(unix)]
     fn stop(&mut self) -> Result<(), ProcessError> {
         use duration_string::DurationString;
         use log::trace;
@@ -233,7 +222,13 @@ impl Process {
             .map_err(|_| ProcessError::MutexPoisoned)?
             .as_mut()
         {
-            let pid = Pid::from_raw(child.id() as i32);
+            let pid = Pid::from_raw(
+                *child
+                    .pids()
+                    .first()
+                    .ok_or(ProcessError::StopFailure("pid not found".to_string()))?
+                    as i32,
+            );
 
             trace!(
                 "Trying to stop process: sending {} to {}.",
@@ -246,7 +241,7 @@ impl Process {
             while start_time.elapsed() < self.stop_timeout {
                 trace!("Testing process state.");
                 if let Ok(Some(output)) = child.try_wait() {
-                    debug!("Process stopped gracefully with status {}.", output);
+                    debug!("Process stopped gracefully with status {}.", output.status);
                     return Ok(());
                 }
                 sleep(Duration::from_secs(1));
@@ -269,7 +264,7 @@ impl Process {
         Ok(())
     }
 
-    #[cfg(unix)]
+    #[cfg(not(unix))]
     fn stop(&mut self) -> Result<(), ProcessError> {
         if let Some(child) = self
             .child
@@ -389,9 +384,23 @@ mod tests {
         let mut action = ProcessAction::new(params)?;
 
         let initial_time = Instant::now();
-        let first_pid = action.process.child.lock().unwrap().as_ref().unwrap().id();
+        let first_pid = action
+            .process
+            .child
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .pids();
         action.run_inner()?;
-        let second_pid = action.process.child.lock().unwrap().as_ref().unwrap().id();
+        let second_pid = action
+            .process
+            .child
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .pids();
         action.process.stop()?;
 
         assert_ne!(
