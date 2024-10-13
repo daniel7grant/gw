@@ -16,7 +16,7 @@
 //! ```
 //!
 
-/// An action is a process that runs if any changes occured (e.g. [running scripts](actions::script::ScriptAction)).
+/// An action is a process that runs if any changes occured (e.g. [running actions](actions::script::ScriptAction)).
 pub mod actions;
 /// A check is a process that tests if there are any changes and updates it.
 pub mod checks;

@@ -1,7 +1,7 @@
 use super::{Action, ActionError};
 use crate::context::Context;
 use duct::ReaderHandle;
-use log::{debug, error, trace};
+use log::{debug, error, info, trace, warn};
 use nix::{errno::Errno, sys::signal::Signal};
 use std::{
     io::{BufRead, BufReader},
@@ -118,7 +118,7 @@ pub struct Process {
 impl Process {
     fn start_child(params: &ProcessParams) -> Result<ReaderHandle, ProcessError> {
         trace!(
-            "Running command {:?} with args: {:?}.",
+            "Running process {:?} with args: {:?}.",
             params.command,
             params.args
         );
@@ -134,8 +134,8 @@ impl Process {
             .reader()
             .map_err(|err| ProcessError::StartFailure(err.to_string()))?;
 
-        trace!(
-            "Started command {:?} with id {}.",
+        info!(
+            "Started process {:?} with id {}.",
             params.command,
             child
                 .pids()
@@ -182,7 +182,7 @@ impl Process {
                     break;
                 }
 
-                debug!(
+                warn!(
                     "Process {:?} failed, retrying ({} retries left).",
                     thread_params.command, tries
                 );
@@ -265,7 +265,7 @@ impl Process {
             while start_time.elapsed() < self.stop_timeout {
                 trace!("Testing process state.");
                 if let Ok(Some(output)) = child.try_wait() {
-                    debug!("Process stopped gracefully with status {}.", output.status);
+                    info!("Process stopped gracefully with status {}.", output.status);
                     return Ok(());
                 }
                 sleep(Duration::from_secs(1));
@@ -280,7 +280,7 @@ impl Process {
                 .kill()
                 .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
 
-            debug!("Process killed successfully.");
+            info!("Process killed successfully.");
         } else {
             debug!("Cannot restart process, because it has already failed.");
         }
@@ -301,7 +301,7 @@ impl Process {
                 .kill()
                 .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
 
-            debug!("Process stopped successfully.");
+            info!("Process stopped successfully.");
         } else {
             debug!("Cannot restart process, because it has already failed.");
         }

@@ -50,7 +50,7 @@ pub fn start(
                     if actions.is_empty() {
                         "pulling"
                     } else {
-                        "running scripts"
+                        "running actions"
                     }
                 );
                 for action in actions.iter_mut() {
