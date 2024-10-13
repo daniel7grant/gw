@@ -4,11 +4,7 @@ use duct::ReaderHandle;
 use log::{debug, error, trace};
 use nix::{errno::Errno, sys::signal::Signal};
 use std::{
-    io::{BufRead, BufReader},
-    str::FromStr,
-    sync::{Arc, Mutex},
-    thread::{self, sleep},
-    time::Duration,
+    io::{BufRead, BufReader}, os::unix::process::ExitStatusExt, str::FromStr, sync::{Arc, RwLock}, thread::{self, sleep}, time::Duration
 };
 use thiserror::Error;
 
@@ -109,7 +105,7 @@ impl ProcessParams {
 #[derive(Debug)]
 #[cfg_attr(unix, allow(dead_code))]
 pub struct Process {
-    child: Arc<Mutex<Option<ReaderHandle>>>,
+    child: Arc<RwLock<Option<ReaderHandle>>>,
     stop_signal: Signal,
     stop_timeout: Duration,
 }
@@ -133,11 +129,21 @@ impl Process {
             .reader()
             .map_err(|err| ProcessError::StartFailure(err.to_string()))?;
 
+        trace!(
+            "Started command {:?} with id {}.",
+            params.command,
+            child
+                .pids()
+                .first()
+                .map(ToString::to_string)
+                .unwrap_or("unknown".to_string())
+        );
+
         Ok(child)
     }
 
     fn start(params: &ProcessParams) -> Result<Process, ProcessError> {
-        let child = Arc::new(Mutex::new(Some(Process::start_child(params)?)));
+        let child = Arc::new(RwLock::new(Some(Process::start_child(params)?)));
 
         let command_id = params.command.clone();
         let max_retries = params.retries;
@@ -147,8 +153,10 @@ impl Process {
             let mut tries = max_retries + 1;
 
             loop {
-                if let Some(stdout) = thread_child.lock().unwrap().as_ref() {
+                trace!("Locking the subprocess to get the stdout.");
+                if let Some(stdout) = thread_child.read().unwrap().as_ref() {
                     let mut reader = BufReader::new(stdout).lines();
+                    trace!("Reading lines from the stdout.");
                     while let Some(Ok(line)) = reader.next() {
                         debug!("[{command_id}] {line}");
                     }
@@ -166,7 +174,10 @@ impl Process {
                     sleep(Duration::from_millis(100));
                     match Process::start_child(&thread_params) {
                         Ok(new_child) => {
-                            if let Ok(mut unlocked_child) = thread_child.lock() {
+                            trace!(
+                                "Locking the subprocess to replace the child with the new process."
+                            );
+                            if let Ok(mut unlocked_child) = thread_child.write() {
                                 unlocked_child.replace(new_child);
                             } else {
                                 error!("Failed locking the child, the mutex might be poisoned.");
@@ -183,8 +194,10 @@ impl Process {
                 }
             }
 
-            if let Ok(mut unlocked_child) = thread_child.lock() {
+            trace!("Locking the subprocess to remove the child.");
+            if let Ok(mut unlocked_child) = thread_child.write() {
                 unlocked_child.take();
+                trace!("The failed process is removed.");
             } else {
                 error!("Failed locking the child, the mutex might be poisoned.");
             }
@@ -216,11 +229,12 @@ impl Process {
         use std::thread::sleep;
         use std::time::Instant;
 
+        trace!("Locking the subprocess to stop it.");
         if let Some(child) = self
             .child
-            .lock()
+            .read()
             .map_err(|_| ProcessError::MutexPoisoned)?
-            .as_mut()
+            .as_ref()
         {
             let pid = Pid::from_raw(
                 *child
@@ -266,11 +280,12 @@ impl Process {
 
     #[cfg(not(unix))]
     fn stop(&mut self) -> Result<(), ProcessError> {
+        trace!("Locking the subprocess to stop it.");
         if let Some(child) = self
             .child
-            .lock()
+            .read()
             .map_err(|_| ProcessError::MutexPoisoned)?
-            .as_mut()
+            .as_ref()
         {
             child
                 .kill()
@@ -387,7 +402,7 @@ mod tests {
         let first_pid = action
             .process
             .child
-            .lock()
+            .read()
             .unwrap()
             .as_ref()
             .unwrap()
@@ -396,7 +411,7 @@ mod tests {
         let second_pid = action
             .process
             .child
-            .lock()
+            .read()
             .unwrap()
             .as_ref()
             .unwrap()
@@ -422,7 +437,7 @@ mod tests {
 
         sleep(Duration::from_secs(1));
 
-        let is_child_exited = action.process.child.lock().unwrap().as_ref().is_none();
+        let is_child_exited = action.process.child.read().unwrap().as_ref().is_none();
 
         assert!(is_child_exited, "The child should exit.");
 
@@ -441,7 +456,7 @@ mod tests {
         fs::write(tailed_file, "").unwrap();
         action.run_inner()?;
 
-        let is_child_running = action.process.child.lock().unwrap().as_ref().is_some();
+        let is_child_running = action.process.child.read().unwrap().as_ref().is_some();
         assert!(is_child_running, "The child should be running.");
 
         action.process.stop()?;
