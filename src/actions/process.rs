@@ -4,7 +4,12 @@ use duct::ReaderHandle;
 use log::{debug, error, trace};
 use nix::{errno::Errno, sys::signal::Signal};
 use std::{
-    io::{BufRead, BufReader}, os::unix::process::ExitStatusExt, str::FromStr, sync::{Arc, RwLock}, thread::{self, sleep}, time::Duration
+    io::{BufRead, BufReader},
+    os::unix::process::ExitStatusExt,
+    str::FromStr,
+    sync::{Arc, RwLock},
+    thread::{self, sleep},
+    time::Duration,
 };
 use thiserror::Error;
 
@@ -161,36 +166,41 @@ impl Process {
                         debug!("[{command_id}] {line}");
                     }
 
-                    tries -= 1;
-                    if tries == 0 {
-                        break;
-                    }
-
-                    debug!(
-                        "Process {:?} failed, retrying ({} retries left).",
-                        thread_params.command, tries
-                    );
-
-                    sleep(Duration::from_millis(100));
-                    match Process::start_child(&thread_params) {
-                        Ok(new_child) => {
-                            trace!(
-                                "Locking the subprocess to replace the child with the new process."
-                            );
-                            if let Ok(mut unlocked_child) = thread_child.write() {
-                                unlocked_child.replace(new_child);
-                            } else {
-                                error!("Failed locking the child, the mutex might be poisoned.");
-                            }
-                        }
-                        Err(err) => {
-                            error!("Failed retrying the process: {err}.");
-                            break;
+                    if let Ok(Some(output)) = stdout.try_wait() {
+                        if output.status.signal().is_some() {
+                            trace!("Process is signalled, no retries necessary.");
+                            return;
                         }
                     }
                 } else {
                     error!("Failed taking the stdout of process.");
                     break;
+                }
+
+                tries -= 1;
+                if tries == 0 {
+                    break;
+                }
+
+                debug!(
+                    "Process {:?} failed, retrying ({} retries left).",
+                    thread_params.command, tries
+                );
+
+                sleep(Duration::from_millis(100));
+                match Process::start_child(&thread_params) {
+                    Ok(new_child) => {
+                        trace!("Locking the subprocess to replace the child with the new process.");
+                        if let Ok(mut unlocked_child) = thread_child.write() {
+                            unlocked_child.replace(new_child);
+                        } else {
+                            error!("Failed locking the child, the mutex might be poisoned.");
+                        }
+                    }
+                    Err(err) => {
+                        error!("Failed retrying the process: {err}.");
+                        break;
+                    }
                 }
             }
 
