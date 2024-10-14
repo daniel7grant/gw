@@ -7,7 +7,7 @@ Watch local git repositories, keep in sync with remote and run commands.
 `gw` is a lightweight binary that manages a simple pull-based continuous deployment for you. It watches a local git repository, fetches if the remote changes, and builds or deploys your code. Current CD solutions either lock you into proprietary software (e.g. Netlify or Vercel) or complicated to run and manage (e.g. ArgoCD). `gw` is a service that can run everywhere (even behind NAT or VPN), synchronizes code with your remote and deploys immediately, saving your developers time and energy.
 
 Features of `gw`:
-- **lightweight**: it is only a 2.5MB binary (~7MB with git and ssh statically built-in)
+- **lightweight**: it is only a 1.5MB binary (~7MB with git and ssh statically built-in)
 - **runs anywhere**: use it on baremetal, [systemd](https://gw.danielgrants.com/usage/systemd.md) or [docker](https://gw.danielgrants.com/usage/docker.md)
 - **open source**: written entirely in Rust, you can build it from source in a few minutes
 - **pull-based**: works on any network, even behind a NAT or VPN
