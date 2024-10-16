@@ -1,6 +1,6 @@
 +++
 title = "Docker container"
-weight = 4
+weight = 5
 +++
 
 # Docker container
@@ -52,7 +52,7 @@ Most applications have many dependencies and complicated setups, and are already
 
 **NOTE**: This doesn't mean that these should be running in the same container, but they can use the same base image in two separate containers. It is a common wisdom that one container should run one thing.
 
-For this we can start off of our application image as a base layer and add the `gw` binary in a `COPY` layer:
+For this we can start off of our application image as a base layer and add the `gw` binary in a `COPY` layer. You can simply wrap your existing command using subprocess mode (`-p`) and it will restart the script every time a pull happened.
 
 ```dockerfile
 FROM example.org/registry/node-image:ubuntu
@@ -61,5 +61,5 @@ FROM example.org/registry/node-image:ubuntu
 COPY --from=danielgrant/gw:0.3.2 /usr/bin/gw /usr/bin/gw
 
 ENTRYPOINT ["/usr/bin/gw"]
-CMD ["/app", "-s", "npm run build"]
+CMD ["/app", "-p", "npm start"]
 ```

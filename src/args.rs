@@ -31,6 +31,10 @@ pub struct Args {
     #[options(long = "script")]
     pub scripts: Vec<String>,
 
+    /// A background process that will be restarted on change.
+    #[options()]
+    pub process: Option<String>,
+
     /// Try to pull only once. Useful for cronjobs.
     #[options(long = "once", no_short)]
     pub once: bool,
@@ -64,6 +68,18 @@ pub struct Args {
     /// Runs an HTTP server on the URL, which allows to trigger by calling it.
     #[options(no_short)]
     pub http: Option<String>,
+
+    /// The number of times to retry the background process in case it fails. By default 0 for no retries.
+    #[options(no_short, meta = "N")]
+    pub process_retries: Option<u32>,
+
+    /// The stop signal to give the background process. Useful for graceful shutdowns. By default SIGINT. (Only supported on *NIX)
+    #[options(no_short, meta = "SIGNAL")]
+    pub stop_signal: Option<String>,
+
+    /// The timeout to wait before killing for the background process to shutdown gracefully. By default 10s.
+    #[options(no_short, meta = "TIMEOUT")]
+    pub stop_timeout: Option<DurationString>,
 
     /// Increase verbosity, can be set multiple times (-v debug, -vv tracing).
     #[options(count)]

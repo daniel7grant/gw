@@ -1,7 +1,7 @@
 use super::{Action, ActionError};
 use crate::context::Context;
 use duct_sh::sh_dangerous;
-use log::{debug, error};
+use log::{debug, error, info};
 use thiserror::Error;
 
 const ACTION_NAME: &str = "SCRIPT";
@@ -87,7 +87,7 @@ impl Action for ScriptAction {
     /// Run the script in a subshell (`/bin/sh` on *nix, `cmd.exe` on Windows).
     /// If the script fails to start, return a non-zero error code or prints non-utf8
     /// characters, this function will result in an error.
-    fn run(&self, context: &Context) -> Result<(), ActionError> {
+    fn run(&mut self, context: &Context) -> Result<(), ActionError> {
         debug!(
             "Running script: {} in directory {}.",
             self.command, self.directory
@@ -95,9 +95,9 @@ impl Action for ScriptAction {
 
         match self.run_inner(context) {
             Ok(result) => {
-                debug!("Command success, output:");
+                info!("Script {:?} finished successfully.", self.command);
                 result.lines().for_each(|line| {
-                    debug!("  {line}");
+                    debug!("[{}]  {line}", self.command);
                 });
                 Ok(())
             }

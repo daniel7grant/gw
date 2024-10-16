@@ -7,7 +7,7 @@ Watch local git repositories, keep in sync with remote and run commands.
 `gw` is a lightweight binary that manages a simple pull-based continuous deployment for you. It watches a local git repository, fetches if the remote changes, and builds or deploys your code. Current CD solutions either lock you into proprietary software (e.g. Netlify or Vercel) or complicated to run and manage (e.g. ArgoCD). `gw` is a service that can run everywhere (even behind NAT or VPN), synchronizes code with your remote and deploys immediately, saving your developers time and energy.
 
 Features of `gw`:
-- **lightweight**: it is only a 2.5MB binary (~7MB with git and ssh statically built-in)
+- **lightweight**: it is only a 1.5MB binary (~7MB with git and ssh statically built-in)
 - **runs anywhere**: use it on baremetal, [systemd](https://gw.danielgrants.com/usage/systemd.md) or [docker](https://gw.danielgrants.com/usage/docker.md)
 - **open source**: written entirely in Rust, you can build it from source in a few minutes
 - **pull-based**: works on any network, even behind a NAT or VPN
@@ -48,13 +48,13 @@ cd time
 To get started, point `gw` to this local repository. By default it pulls the changes every minute. We can add the `--verbose` or `-v` flag to see when the changes occur:
 
 ```sh
-gw . -v
+gw /path/to/repo -v
 ```
 
 If you are using your own repository, create a commit in a different place, and see how it gets automatically pulled (in the case of the `time` repo, there is a commit every minute). The verbose logs should print that a git pull happened:
 
 ```sh
-$ gw . -v
+$ gw /path/to/repo -v
 # ...
 2024-03-10T14:48:13.447Z DEBUG [gw_bin::checks::git::repository] Checked out fc23d21 on branch main.
 2024-03-10T14:48:13.447Z INFO  [gw_bin::start] There are updates, pulling.
@@ -72,21 +72,37 @@ git log -1  # it should be a commit in the last minute
 Pulling files automatically is useful but the `--script` or `-s` flag unlocks `gw`'s potential: it can run any kind of custom script if there are any changes. For a simple example, we can print the content of a file to the log with `cat`:
 
 ```sh
-gw . -v --script 'cat DATETIME'
+gw /path/to/repo -v --script 'cat DATETIME'
 ```
 
 This will run every time there is a new commit, and after the pull it will print the file contents. You can see that the results are printed in the log:
 
 ```sh
-$ gw . -v --script 'cat DATETIME'
+$ gw /path/to/repo -v --script 'cat DATETIME'
 # ...
-2024-03-10T15:04:37.740Z INFO  [gw_bin::start] There are updates, running scripts.
-2024-03-10T15:04:37.740Z DEBUG [gw_bin::actions::script] Running script: cat DATETIME in directory /home/grant/Development/quick/time.
+2024-03-10T15:04:37.740Z INFO  [gw_bin::start] There are updates, running actions.
+2024-03-10T15:04:37.740Z DEBUG [gw_bin::actions::script] Running script: cat DATETIME in directory /path/to/repo.
 2024-03-10T15:04:37.742Z DEBUG [gw_bin::actions::script] Command success, output:
 2024-03-10T15:04:37.742Z DEBUG [gw_bin::actions::script]   2024-03-10T15:04:01+0000
 ```
 
 You can add multiple scripts, which will run one after another. Use these scripts to build source files, restarts deployments and anything else that you can imagine.
+
+### Run subprocess, restart on pull
+
+It is often enough to run scripts, but many times you also want to maintain a long-running process e.g. for web services. `gw` can help you with this, using the `-p` flag. This will start a process in the background and restart it on pull.
+
+For example starting a python web server:
+
+```sh
+$ gw /path/to/repo -v -p "python -m http.server"
+# ...
+2024-10-06T21:58:21.306Z DEBUG [gw] Setting up ProcessAction "python -m http.server" on change.
+2024-10-06T21:58:21.306Z DEBUG [gw_bin::actions::process] Starting process: "python" in directory /path/to/repo.
+2024-10-06T21:58:56.211Z DEBUG [gw_bin::actions::process] [python] Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+```
+
+This will run a python process in the background and stop and start it again if a git pull happened. Just wrap your deployment script with `gw` and see it gets updated every time you push to git.
 
 ## Next steps
 

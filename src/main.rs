@@ -1,6 +1,10 @@
 use args::parse_args;
 use gw_bin::{
-    actions::{script::ScriptAction, Action},
+    actions::{
+        process::{ProcessAction, ProcessParams},
+        script::ScriptAction,
+        Action, ActionError,
+    },
     checks::{
         git::{CredentialAuth, GitCheck},
         Check, CheckError,
@@ -30,6 +34,8 @@ pub enum MainError {
     FailedLogger(#[from] SetLoggerError),
     #[error(transparent)]
     FailedStart(#[from] StartError),
+    #[error("Action failed: {0}.")]
+    FailedAction(#[from] ActionError),
 }
 
 fn main_inner() -> Result<(), MainError> {
@@ -90,8 +96,27 @@ fn main_inner() -> Result<(), MainError> {
     // Setup actions.
     let mut actions: Vec<Box<dyn Action>> = vec![];
     for script in args.scripts {
-        debug!("Setting up ScriptAction '{script}' on change.");
+        debug!("Setting up ScriptAction {script:?} on change.");
         actions.push(Box::new(ScriptAction::new(directory.clone(), script)));
+    }
+    if let Some(process) = args.process {
+        debug!("Setting up ProcessAction {process:?} on change.");
+        let mut process_params =
+            ProcessParams::new(process, directory.clone()).map_err(ActionError::from)?;
+
+        if let Some(retries) = args.process_retries {
+            process_params.set_retries(retries);
+        }
+        if let Some(stop_signal) = args.stop_signal {
+            process_params.set_stop_signal(stop_signal).map_err(ActionError::from)?;
+        }
+        if let Some(stop_timeout) = args.stop_timeout {
+            process_params.set_stop_timeout(stop_timeout.into());
+        }
+ 
+        actions.push(Box::new(
+            ProcessAction::new(process_params).map_err(ActionError::from)?,
+        ));
     }
 
     if actions.is_empty() {
@@ -99,7 +124,7 @@ fn main_inner() -> Result<(), MainError> {
     }
 
     // Start the main script.
-    start(triggers, &mut check, &actions)?;
+    start(triggers, &mut check, &mut actions)?;
     Ok(())
 }
 

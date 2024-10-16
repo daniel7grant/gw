@@ -1,6 +1,6 @@
 +++
 title = "Docker Compose"
-weight = 3
+weight = 4
 +++
 
 # Docker Compose

@@ -1,14 +1,6 @@
 use super::{Trigger, TriggerError};
 use crate::context::Context;
-#[cfg(target_os = "windows")]
 use log::debug;
-#[cfg(not(target_os = "windows"))]
-use log::{debug, error, warn};
-#[cfg(not(target_os = "windows"))]
-use signal_hook::{
-    consts::TERM_SIGNALS,
-    iterator::{exfiltrator::SignalOnly, SignalsInfo},
-};
 use std::sync::mpsc::Sender;
 
 const _TRIGGER_NAME: &str = "SIGNAL";
@@ -17,11 +9,12 @@ const _TRIGGER_NAME: &str = "SIGNAL";
 pub struct SignalTrigger;
 
 impl SignalTrigger {
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(unix)]
     fn listen_inner<I>(&self, tx: Sender<Option<Context>>, signals: I) -> Result<(), TriggerError>
     where
         I: IntoIterator<Item = i32>,
     {
+        use log::error;
         for signal in signals.into_iter() {
             debug!("Got signal {signal}, terminating after all actions finished.");
             if tx.send(None).is_err() {
@@ -35,8 +28,13 @@ impl SignalTrigger {
 
 impl Trigger for SignalTrigger {
     /// Starts a trigger that iterates over signals and terminates the program.
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(unix)]
     fn listen(&self, tx: Sender<Option<Context>>) -> Result<(), TriggerError> {
+        use log::warn;
+        use signal_hook::{
+            consts::TERM_SIGNALS,
+            iterator::{exfiltrator::SignalOnly, SignalsInfo},
+        };
         let signals = SignalsInfo::<SignalOnly>::new(TERM_SIGNALS);
         if let Ok(mut signals) = signals {
             self.listen_inner(tx, &mut signals)?;
@@ -47,16 +45,16 @@ impl Trigger for SignalTrigger {
         Ok(())
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(not(unix))]
     fn listen(&self, _tx: Sender<Option<Context>>) -> Result<(), TriggerError> {
-        debug!("Signal handlers are not supported on Windows.");
+        debug!("Signal handlers are not supported on non-unix systems.");
 
         Ok(())
     }
 }
 
 #[cfg(test)]
-#[cfg(not(target_os = "windows"))]
+#[cfg(unix)]
 mod tests {
     use super::*;
     use std::sync::mpsc;

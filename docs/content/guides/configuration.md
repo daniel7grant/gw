@@ -1,6 +1,6 @@
 +++
 title = "Configuration files"
-weight = 4
+weight = 5
 +++
 
 # Configuration files
@@ -41,6 +41,12 @@ Then you can setup `gw` to reload `nginx` on config change. You can either use `
 gw /etc/nginx -s 'nginx -s reload'
 # or
 gw /etc/nginx -s 'systemctl reload nginx'
+```
+
+You can also run `nginx` as a subprocess if you don't want to manage it separately, but this will stop and restart it every time a pull occurs:
+
+```sh
+gw /etc/nginx -p "nginx -g 'daemon off;'"
 ```
 
 If you want to avoid getting your system into a bad state by mistake, you can test the config files first with `nginx -t`:

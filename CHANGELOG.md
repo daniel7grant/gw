@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- **New feature**: Subprocess handling
+  - Use `-p` to start a process directly and restart on change
+  - Configure the retries to restart the process in case of a failure
+  - Set the stop signal and stop timeout args to configure graceful shutdown before restart
+
 ### Changed
 
 - Only change gitconfig (safe.directory) if there isn't one

@@ -1,6 +1,6 @@
 +++
 title = "Netlify alternative"
-weight = 6
+weight = 7
 +++
 
 # Netlify alternative
@@ -26,11 +26,44 @@ npx @11ty/eleventy --input=. --output=output/$GW_GIT_COMMIT_SHORT_SHA
 You can use this command to configure your `gw`:
 
 ```sh
-gw /path/to/directory --script 'jekyll build --destination=output/$GW_GIT_COMMIT_SHORT_SHA'
+gw /path/to/repo -s 'jekyll build --destination=output/$GW_GIT_COMMIT_SHORT_SHA'
+```
+
+To build another version for the latest you can copy the files to another folder:
+
+```sh
+gw /path/to/repo -s 'jekyll build --destination=output/$GW_GIT_COMMIT_SHORT_SHA' -s 'cp -r output/$GW_GIT_COMMIT_SHORT_SHA output/latest'
 ```
 
 ## Web server configuration
 
-One extra setup that you have to do is point your web server to this directory.
+One extra setup that you have to do is point your web server to this directory. By default you can use it as path prefixes, but it can be configured to sub domains to these directories. That way you could reach the commit `0c431ff1` on the url `0c431ff1.example.net`.
 
-By default you can use it as path prefixes, but it can be configured to map to sub domains, for example:
+> Make sure to setup wildcard domains in your DNS server so it redirects all domains to your server!
+
+## Nginx
+
+You can use regexes in [server_name](https://nginx.org/en/docs/http/server_names.html) to rewrite subdomains into different folders. For example this configuration will resolve `0c431ff1.example.net` to `/path/to/repo/0c431ff1`:
+
+```sh
+http {
+    server {
+        # It will capture the subdomain (e.g. 0c431ff1.example.net)
+        server_name ~^([0-9a-f])\.example\.net$;
+
+        location / {
+            # And resolve to /path/to/repo/0c431ff1
+            root /path/to/repo/$1;
+        }
+    }
+
+    # You can add another to reach the latest
+    server {
+        server_name example.net;
+
+        location / {
+            root /path/to/repo/latest;
+        }
+    }
+}
+```

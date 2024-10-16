@@ -2,6 +2,8 @@ use crate::context::Context;
 use mockall::automock;
 use thiserror::Error;
 
+/// An action to run in the background and restart a subprocess.
+pub mod process;
 /// An action to run a custom shell script.
 pub mod script;
 
@@ -27,5 +29,5 @@ pub enum ActionError {
 #[automock]
 pub trait Action {
     /// Initiate the action
-    fn run(&self, context: &Context) -> Result<(), ActionError>;
+    fn run(&mut self, context: &Context) -> Result<(), ActionError>;
 }

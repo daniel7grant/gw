@@ -23,7 +23,7 @@ pub enum StartError {
 pub fn start(
     triggers: Vec<Box<dyn Trigger>>,
     check: &mut Box<dyn Check>,
-    actions: &[Box<dyn Action>],
+    actions: &mut [Box<dyn Action>],
 ) -> Result<(), StartError> {
     let (tx, rx) = mpsc::channel::<Option<Context>>();
 
@@ -50,10 +50,10 @@ pub fn start(
                     if actions.is_empty() {
                         "pulling"
                     } else {
-                        "running scripts"
+                        "running actions"
                     }
                 );
-                for action in actions {
+                for action in actions.iter_mut() {
                     let _ = action.run(&context);
                 }
             }
@@ -100,7 +100,7 @@ mod tests {
         // Setup mock action.
         let mut mock_action = MockAction::new();
         mock_action.expect_run().times(1).returning(|_| Ok(()));
-        let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
+        let actions: &mut [Box<dyn Action>] = &mut [Box::new(mock_action)];
 
         let result = start(triggers, &mut check, actions);
         assert!(result.is_ok());
@@ -125,7 +125,7 @@ mod tests {
         // Setup mock action.
         let mut mock_action = MockAction::new();
         mock_action.expect_run().times(0);
-        let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
+        let actions: &mut [Box<dyn Action>] = &mut [Box::new(mock_action)];
 
         let result = start(triggers, &mut check, actions);
         assert!(result.is_ok());
@@ -153,7 +153,7 @@ mod tests {
         // Setup mock action.
         let mut mock_action = MockAction::new();
         mock_action.expect_run().times(0);
-        let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
+        let actions: &mut [Box<dyn Action>] = &mut [Box::new(mock_action)];
 
         let result = start(triggers, &mut check, actions);
         assert!(result.is_ok());
@@ -172,7 +172,7 @@ mod tests {
         // Setup mock action.
         let mut mock_action = MockAction::new();
         mock_action.expect_run().times(0);
-        let actions: &[Box<dyn Action>] = &[Box::new(mock_action)];
+        let actions: &mut [Box<dyn Action>] = &mut [Box::new(mock_action)];
 
         let result = start(triggers, &mut check, actions);
         assert!(result.is_err());
