@@ -1,6 +1,6 @@
 +++
 title = "Webhook server"
-weight = 6
+weight = 7
 +++
 
 # Webhook server
@@ -12,7 +12,7 @@ By default `gw` checks for updates every minute. Depending on your usecase it ca
 To enable the webhook server, you can use the `--http` option. Most of the time you want to allow external connections, so to set to a high port (for example `10101`), you can use:
 
 ```sh
-gw . -v --http 0.0.0.0:10101
+gw /path/to/repo -v --http 0.0.0.0:10101
 ```
 
 If you call this endpoint with any method on any URL, it will trigger a check for updates. To test this, you can use `curl`:
@@ -24,7 +24,7 @@ curl http://localhost:10101
 The `curl` output should print `OK` and the `gw` logs should include lines that show that it was updated:
 
 ```sh
-$ gw . -v --http 0.0.0.0:10101
+$ gw /path/to/repo -v --http 0.0.0.0:10101
 # ...
 2024-03-10T16:52:51.531Z DEBUG [gw_bin::triggers::http] Received request on GET /
 2024-03-10T16:52:52.055Z DEBUG [gw_bin::checks::git::repository] Checked out 5e25714 on branch main.
@@ -34,7 +34,7 @@ $ gw . -v --http 0.0.0.0:10101
 If you want to disable the scheduled checks altogether and rely on the webhooks, you can set the schedule duration (`-d` flag) to zero seconds:
 
 ```sh
-gw . -v --http 0.0.0.0:10101 -d 0s
+gw /path/to/repo -v --http 0.0.0.0:10101 -d 0s
 ```
 
 ## Setup webhooks
@@ -58,7 +58,7 @@ On save, the webhook should send a `ping` event to `gw`. If you click into new w
 A `POST /` request will also appear in the `gw` logs, assuming debug logging was enabled:
 
 ```sh
-$ gw . -v --http 0.0.0.0:10101
+$ gw /path/to/repo -v --http 0.0.0.0:10101
 # ...
 2024-03-10T17:18:24.424Z DEBUG [gw_bin::triggers::http] Received request on POST /
 2024-03-10T17:18:24.567Z DEBUG [gw_bin::start] There are no updates.
@@ -73,7 +73,7 @@ For GitLab, you have to have Maintainer access to the repository. Navigate to **
 To test this webhook, you can click **Test > Push events** next to the name. GitLab should show a message that **Hook executed successfully: HTTP 200**, and you can find a `POST /` request in the `gw` logs, assuming debug logging was enabled:
 
 ```sh
-$ gw . -v --http 0.0.0.0:10101
+$ gw /path/to/repo -v --http 0.0.0.0:10101
 # ...
 2024-03-10T17:58:28.919Z DEBUG [gw_bin::triggers::http] Received request on POST /
 2024-03-10T17:58:29.052Z DEBUG [gw_bin::start] There are no updates.

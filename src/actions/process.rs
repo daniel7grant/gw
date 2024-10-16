@@ -123,6 +123,11 @@ impl Process {
             params.args
         );
 
+        info!(
+            "Starting process {:?} in {}.",
+            params.command, params.directory,
+        );
+
         // Create child
         let child = duct::cmd(&params.command, &params.args)
             .dir(&params.directory)
@@ -134,15 +139,9 @@ impl Process {
             .reader()
             .map_err(|err| ProcessError::StartFailure(err.to_string()))?;
 
-        info!(
-            "Started process {:?} with id {}.",
-            params.command,
-            child
-                .pids()
-                .first()
-                .map(ToString::to_string)
-                .unwrap_or("unknown".to_string())
-        );
+        if let Some(pid) = child.pids().first() {
+            trace!("Started process with pid {pid}.",);
+        }
 
         Ok(child)
     }
@@ -320,10 +319,6 @@ pub struct ProcessAction {
 impl ProcessAction {
     /// Creates a new process in the background.
     pub fn new(params: ProcessParams) -> Result<ProcessAction, ProcessError> {
-        debug!(
-            "Starting process: {:?} in directory {}.",
-            params.command, params.directory
-        );
         let process = Process::start(&params)?;
 
         Ok(ProcessAction { params, process })

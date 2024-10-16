@@ -1,6 +1,6 @@
 +++
 title = "Compiled languages"
-weight = 2
+weight = 3
 +++
 
 # Compiled languages
@@ -17,6 +17,12 @@ For example for TypeScript, transpile to JS and run with Node.js:
 
 ```sh
 gw /path/to/repo -s 'npx tsc -p tsconfig.json' -p 'node dist/index.js'
+```
+
+For Next.js and other frameworks that require a build step before starting, you can use:
+
+```sh
+gw /path/to/repo -s 'npm run build' -p 'npm run start'
 ```
 
 ### Go
