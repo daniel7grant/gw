@@ -43,7 +43,7 @@ One extra setup that you have to do is point your web server to this directory. 
 
 ## Nginx
 
-You can use regexes in `server_name` to rewrite subdomains into different folders. For example this configuration will resolve `0c431ff1.example.net` to `/path/to/repo/0c431ff1`:
+You can use regexes in [server_name](https://nginx.org/en/docs/http/server_names.html) to rewrite subdomains into different folders. For example this configuration will resolve `0c431ff1.example.net` to `/path/to/repo/0c431ff1`:
 
 ```sh
 http {
