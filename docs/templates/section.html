@@ -6,6 +6,9 @@
         <title>gw - {{ section.title }}</title>
         <link rel="stylesheet" href="/sakura-dark.css" />
         <link rel="stylesheet" href="/custom.css" />
+        {% if config.base_url == "https://gw.danielgrants.com" %}
+        <script defer src="https://umami.danielgrants.com/script.js" data-website-id="178d68b6-42dc-4286-8a11-43bc183a397e"></script>
+        {% endif %}
     </head>
     <body>
         {% include "partials/toc.html" %}
