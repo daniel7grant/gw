@@ -5,7 +5,7 @@ weight = 3
 
 # Actions on pull
 
-The main point of `gw` is to do actions every time there code is pulled. There are multiple actions: running a script or restarting a background process.
+The main point of `gw` is to do actions every time there code is pulled. There are multiple actions: running a script or restarting a background process. The order of the actions matter, and they will be executed sequentially based on the order of the command-line arguments.
 
 ## Scripts
 
@@ -25,7 +25,7 @@ $ gw /path/to/repo -v -s 'echo "updated"'
 2024-03-10T15:04:37.742Z DEBUG [gw_bin::actions::script]   update
 ```
 
-Scripts are always run first of all actions and run in a shell (`/bin/sh` on Linux and `cmd` on Windows). This way you can expand variables and use shell features e.g. pipes or multiple commands. The full enviroment is passed to scripts with a number of [gw-specific environment variables](/reference/environment-variables). If you want to use variables make sure to use singlequotes so they aren't expanded beforehand.
+Scripts are run in a shell: `/bin/sh` on Linux and `cmd` on Windows. This way you can expand variables and use shell features e.g. pipes or multiple commands. The full enviroment is passed to scripts with a number of [gw-specific environment variables](/reference/environment-variables). If you want to use variables make sure to use singlequotes so they aren't expanded beforehand.
 
 ```sh
 gw /path/to/repo -s 'ls -l $BUILD_DIRECTORY | wc -l'
@@ -57,7 +57,11 @@ $ gw /path/to/repo -v -s 'ping 1.1.1.1'
 2024-10-16T18:04:25.906Z DEBUG [gw_bin::actions::process] [ping] 64 bytes from 1.1.1.1: icmp_seq=1 ttl=57 time=16.8 ms
 ```
 
-Unlike scripts, you can only define one process and they are executed directly instead of in a shell. Processes also can't access gw-specific environment variables. 
+Unlike scripts, you can only define one process and they are executed directly instead of in a shell. Processes also can't access gw-specific environment variables. Scripts defined before process will be run before the restart and if defined after they will run after.
+
+```sh
+gw /path/to/repo -s 'echo this runs before' -p 'ping 1.1.1.1' -s 'echo this runs after'
+```
 
 If a process fails, by default it marked failed and an error printed. If you want to retry the process you can set the `--process-retries` flag:
 

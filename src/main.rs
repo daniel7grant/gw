@@ -1,4 +1,4 @@
-use args::parse_args;
+use args::{parse_args, ArgAction};
 use gw_bin::{
     actions::{
         process::{ProcessAction, ProcessParams},
@@ -39,7 +39,7 @@ pub enum MainError {
 }
 
 fn main_inner() -> Result<(), MainError> {
-    let args = parse_args();
+    let (args, arg_actions) = parse_args();
 
     if args.version {
         println!("{}", env!("CARGO_PKG_VERSION"));
@@ -95,28 +95,34 @@ fn main_inner() -> Result<(), MainError> {
 
     // Setup actions.
     let mut actions: Vec<Box<dyn Action>> = vec![];
-    for script in args.scripts {
-        debug!("Setting up ScriptAction {script:?} on change.");
-        actions.push(Box::new(ScriptAction::new(directory.clone(), script)));
-    }
-    if let Some(process) = args.process {
-        debug!("Setting up ProcessAction {process:?} on change.");
-        let mut process_params =
-            ProcessParams::new(process, directory.clone()).map_err(ActionError::from)?;
+    for arg_action in arg_actions {
+        match arg_action {
+            ArgAction::Script(script) => {
+                debug!("Setting up ScriptAction {script:?} on change.");
+                actions.push(Box::new(ScriptAction::new(directory.clone(), script)));
+            }
+            ArgAction::Process(process) => {
+                debug!("Setting up ProcessAction {process:?} on change.");
+                let mut process_params =
+                    ProcessParams::new(process, directory.clone()).map_err(ActionError::from)?;
 
-        if let Some(retries) = args.process_retries {
-            process_params.set_retries(retries);
+                if let Some(retries) = args.process_retries {
+                    process_params.set_retries(retries);
+                }
+                if let Some(ref stop_signal) = args.stop_signal {
+                    process_params
+                        .set_stop_signal(stop_signal.clone())
+                        .map_err(ActionError::from)?;
+                }
+                if let Some(stop_timeout) = args.stop_timeout {
+                    process_params.set_stop_timeout(stop_timeout.into());
+                }
+
+                actions.push(Box::new(
+                    ProcessAction::new(process_params).map_err(ActionError::from)?,
+                ));
+            }
         }
-        if let Some(stop_signal) = args.stop_signal {
-            process_params.set_stop_signal(stop_signal).map_err(ActionError::from)?;
-        }
-        if let Some(stop_timeout) = args.stop_timeout {
-            process_params.set_stop_timeout(stop_timeout.into());
-        }
- 
-        actions.push(Box::new(
-            ProcessAction::new(process_params).map_err(ActionError::from)?,
-        ));
     }
 
     if actions.is_empty() {

@@ -1,6 +1,6 @@
 use duration_string::DurationString;
 use gumdrop::Options;
-use std::str::FromStr;
+use std::{env, str::FromStr};
 
 #[derive(Clone, Debug)]
 pub enum Trigger {
@@ -98,6 +98,28 @@ pub struct Args {
     pub help: bool,
 }
 
-pub fn parse_args() -> Args {
-    Args::parse_args_default_or_exit()
+#[derive(Debug)]
+pub enum ArgAction {
+    Process(String),
+    Script(String),
+}
+
+pub fn parse_args() -> (Args, Vec<ArgAction>) {
+    let args = Args::parse_args_default_or_exit();
+
+    // We have to maintain positionality between different flags
+    let arg_actions = env::args()
+        .skip(2)
+        .filter_map(|arg| {
+            if args.process.as_ref() == Some(&arg) {
+                Some(ArgAction::Process(arg))
+            } else if args.scripts.contains(&arg) {
+                Some(ArgAction::Script(arg))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    (args, arg_actions)
 }
