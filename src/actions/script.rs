@@ -1,7 +1,9 @@
 use super::{Action, ActionError};
 use crate::context::Context;
+use duct::Expression;
 use duct_sh::sh_dangerous;
-use log::{debug, error, info};
+use log::{debug, error, info, trace};
+use std::io::{BufRead, BufReader};
 use thiserror::Error;
 
 const ACTION_NAME: &str = "SCRIPT";
@@ -15,6 +17,7 @@ const ACTION_NAME: &str = "SCRIPT";
 pub struct ScriptAction {
     directory: String,
     command: String,
+    script: Expression,
 }
 
 /// Custom error describing the error cases for the ScriptAction.
@@ -25,19 +28,19 @@ pub enum ScriptError {
     ScriptFailure(#[from] std::io::Error),
     /// The script returned a non-zero exit code, usually meaning it failed to start
     /// or encountered an error. The parameters are the exit code and the failed output.
-    #[error("the script returned non-zero exit code {0} with message: {1}")]
-    NonZeroExitcode(i32, String),
-    /// The script output contains non-UTF8 characters.
-    #[error("the script returned invalid characters")]
-    NonUtf8Return,
+    #[error("the script returned non-zero exit code {0}")]
+    NonZeroExitcode(i32),
+    /// This means that an error occured when trying to read from the output of the script.
+    #[error("the script returned invalid output")]
+    OutputFailure,
 }
 
 impl From<ScriptError> for ActionError {
     fn from(value: ScriptError) -> Self {
         match value {
             ScriptError::ScriptFailure(_)
-            | ScriptError::NonZeroExitcode(_, _)
-            | ScriptError::NonUtf8Return => ActionError::FailedAction(value.to_string()),
+            | ScriptError::NonZeroExitcode(_)
+            | ScriptError::OutputFailure => ActionError::FailedAction(value.to_string()),
         }
     }
 }
@@ -45,40 +48,52 @@ impl From<ScriptError> for ActionError {
 impl ScriptAction {
     /// Creates a new script to be started in the given directory.
     pub fn new(directory: String, command: String) -> Self {
-        ScriptAction { directory, command }
+        // We can run `sh_dangerous`, because it is on the user's computer.
+        let script = sh_dangerous(&command)
+            .env("CI", "true")
+            .env("GW_ACTION_NAME", ACTION_NAME)
+            .env("GW_DIRECTORY", &directory)
+            .stderr_to_stdout()
+            .stdout_capture()
+            .dir(&directory)
+            .unchecked();
+
+        ScriptAction {
+            directory,
+            command,
+            script,
+        }
     }
 
-    fn run_inner(&self, context: &Context) -> Result<String, ScriptError> {
+    fn run_inner(&self, context: &Context) -> Result<(), ScriptError> {
         // We can run `sh_dangerous`, because it is on the user's computer.
-        let mut command = sh_dangerous(&self.command);
+        let mut script = self.script.clone();
 
         // Set the environment variables
-        command = command.env("CI", "true");
-        command = command.env("GW_ACTION_NAME", ACTION_NAME);
-        command = command.env("GW_DIRECTORY", &self.directory);
         for (key, value) in context {
-            command = command.env(format!("GW_{key}"), value);
+            script = script.env(format!("GW_{key}"), value);
         }
 
         // Start the shell script
-        let output = command
-            .stderr_to_stdout()
-            .stdout_capture()
-            .dir(&self.directory)
-            .unchecked()
-            .run()?;
+        let child = script.reader()?;
 
-        let output_str =
-            std::str::from_utf8(&output.stdout).map_err(|_| ScriptError::NonUtf8Return)?;
-        let output_str = output_str.trim_end().to_string();
+        let mut reader = BufReader::new(&child).lines();
+        trace!("Reading lines from the script.");
+        let command_id = self.command.as_str();
+        while let Some(Ok(line)) = reader.next() {
+            debug!("[{command_id}] {line}");
+        }
 
-        if output.status.success() {
-            Ok(output_str)
+        if let Ok(Some(output)) = child.try_wait() {
+            if output.status.success() {
+                Ok(())
+            } else {
+                Err(ScriptError::NonZeroExitcode(
+                    output.status.code().unwrap_or(-1),
+                ))
+            }
         } else {
-            Err(ScriptError::NonZeroExitcode(
-                output.status.code().unwrap_or(-1),
-                output_str,
-            ))
+            Err(ScriptError::OutputFailure)
         }
     }
 }
@@ -94,11 +109,8 @@ impl Action for ScriptAction {
         );
 
         match self.run_inner(context) {
-            Ok(result) => {
+            Ok(()) => {
                 info!("Script {:?} finished successfully.", self.command);
-                result.lines().for_each(|line| {
-                    debug!("[{}]  {line}", self.command);
-                });
                 Ok(())
             }
             Err(err) => {
@@ -114,6 +126,27 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
+    fn validate_output<F>(command: &str, asserter: F)
+    where
+        F: Fn(Vec<&str>),
+    {
+        let command = format!("[{command}] ");
+        testing_logger::validate(|captured_logs| {
+            let output: Vec<&str> = captured_logs
+                .iter()
+                .filter_map(|line| {
+                    if line.body.starts_with(&command) {
+                        Some(line.body.as_str().trim_start_matches(&command))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            asserter(output);
+        });
+    }
+
     #[test]
     fn it_should_create_new_script() {
         let action = ScriptAction::new(String::from("."), String::from("echo test"));
@@ -124,55 +157,78 @@ mod tests {
 
     #[test]
     fn it_should_run_the_script() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("echo test"));
+        testing_logger::setup();
+
+        let command = "echo test";
+        let action = ScriptAction::new(String::from("."), String::from(command));
 
         let context: Context = HashMap::new();
-        let output = action.run_inner(&context)?;
-        assert_eq!("test", output);
+        action.run_inner(&context)?;
+
+        validate_output(command, |lines| {
+            assert_eq!(vec!["test"], lines);
+        });
 
         Ok(())
     }
 
     #[test]
     fn it_should_set_the_env_vars() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("printenv"));
+        testing_logger::setup();
+
+        let command = "printenv";
+        let action = ScriptAction::new(String::from("."), String::from(command));
 
         let context: Context = HashMap::from([
             ("TRIGGER_NAME", "TEST-TRIGGER".to_string()),
             ("CHECK_NAME", "TEST-CHECK".to_string()),
         ]);
-        let output = action.run_inner(&context)?;
-        let lines: Vec<&str> = output.lines().collect();
-        assert!(lines.contains(&"CI=true"));
-        assert!(lines.contains(&"GW_TRIGGER_NAME=TEST-TRIGGER"));
-        assert!(lines.contains(&"GW_CHECK_NAME=TEST-CHECK"));
-        assert!(lines.contains(&"GW_ACTION_NAME=SCRIPT"));
-        assert!(lines.contains(&"GW_DIRECTORY=."));
+        action.run_inner(&context)?;
+
+        validate_output(command, |lines| {
+            dbg!(&lines);
+            assert!(lines.contains(&"CI=true"));
+            assert!(lines.contains(&"GW_TRIGGER_NAME=TEST-TRIGGER"));
+            assert!(lines.contains(&"GW_CHECK_NAME=TEST-CHECK"));
+            assert!(lines.contains(&"GW_ACTION_NAME=SCRIPT"));
+            assert!(lines.contains(&"GW_DIRECTORY=."));
+        });
 
         Ok(())
     }
 
     #[test]
     fn it_should_keep_the_already_set_env_vars() -> Result<(), ScriptError> {
+        testing_logger::setup();
+
         std::env::set_var("GW_TEST", "GW_TEST");
 
+        let command = "printenv";
         let action = ScriptAction::new(String::from("."), String::from("printenv"));
 
         let context: Context = HashMap::new();
-        let output = action.run_inner(&context)?;
-        let lines: Vec<&str> = output.lines().collect();
-        assert!(lines.contains(&"GW_TEST=GW_TEST"));
+        action.run_inner(&context)?;
+
+        validate_output(command, |lines| {
+            assert!(lines.contains(&"GW_TEST=GW_TEST"));
+        });
 
         Ok(())
     }
 
     #[test]
     fn it_should_catch_error_output() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("echo err >&2"));
+        testing_logger::setup();
+
+        let command = "echo err >&2";
+        let action = ScriptAction::new(String::from("."), String::from(command));
 
         let context: Context = HashMap::new();
-        let output = action.run_inner(&context)?;
-        assert_eq!("err", output);
+        action.run_inner(&context)?;
+
+        validate_output(command, |lines| {
+            assert_eq!(vec!["err"], lines);
+        });
 
         Ok(())
     }
@@ -184,7 +240,7 @@ mod tests {
         let context: Context = HashMap::new();
         let result = action.run_inner(&context);
         assert!(
-            matches!(result, Err(ScriptError::NonZeroExitcode(1, _))),
+            matches!(result, Err(ScriptError::NonZeroExitcode(1))),
             "{result:?} should match non zero exit code"
         );
 
@@ -199,8 +255,8 @@ mod tests {
         let context: Context = HashMap::new();
         let result = action.run_inner(&context);
         assert!(
-            matches!(result, Err(ScriptError::NonUtf8Return)),
-            "{result:?} should match non utf8 return"
+            matches!(result, Err(ScriptError::OutputFailure)),
+            "{result:?} should match non output failure"
         );
 
         Ok(())
