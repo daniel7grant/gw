@@ -31,9 +31,17 @@ pub struct Args {
     #[options(long = "script")]
     pub scripts: Vec<String>,
 
+    /// Run the script to run on changes in a shell.
+    #[options(short = "S", no_long)]
+    pub scripts_with_shell: Vec<String>,
+
     /// A background process that will be restarted on change.
     #[options()]
     pub process: Option<String>,
+
+    /// Run a background process in a shell.
+    #[options(short = "P", no_long)]
+    pub process_with_shell: Option<String>,
 
     /// Try to pull only once. Useful for cronjobs.
     #[options(long = "once", no_short)]
@@ -100,8 +108,8 @@ pub struct Args {
 
 #[derive(Debug)]
 pub enum ArgAction {
-    Process(String),
-    Script(String),
+    Process(String, bool),
+    Script(String, bool),
 }
 
 pub fn parse_args() -> (Args, Vec<ArgAction>) {
@@ -112,9 +120,13 @@ pub fn parse_args() -> (Args, Vec<ArgAction>) {
         .skip(2)
         .filter_map(|arg| {
             if args.process.as_ref() == Some(&arg) {
-                Some(ArgAction::Process(arg))
+                Some(ArgAction::Process(arg, false))
+            } else if args.process_with_shell.as_ref() == Some(&arg) {
+                Some(ArgAction::Process(arg, true))
             } else if args.scripts.contains(&arg) {
-                Some(ArgAction::Script(arg))
+                Some(ArgAction::Script(arg, false))
+            } else if args.scripts_with_shell.contains(&arg) {
+                Some(ArgAction::Script(arg, true))
             } else {
                 None
             }

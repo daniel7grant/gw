@@ -6,6 +6,8 @@ use thiserror::Error;
 pub mod process;
 /// An action to run a custom shell script.
 pub mod script;
+/// Utilities for shared code
+pub mod utils;
 
 /// A custom error for describing the error cases for actions
 #[derive(Debug, Error)]

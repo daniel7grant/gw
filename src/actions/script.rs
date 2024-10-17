@@ -1,7 +1,6 @@
-use super::{Action, ActionError};
+use super::{utils::command::create_command, Action, ActionError};
 use crate::context::Context;
 use duct::Expression;
-use duct_sh::sh_dangerous;
 use log::{debug, error, info, trace};
 use std::io::{BufRead, BufReader};
 use thiserror::Error;
@@ -14,6 +13,7 @@ const ACTION_NAME: &str = "SCRIPT";
 /// so it can use any feature in these shells: variable expansion, pipes, redirection.
 /// Both the stdout and stderr will be captured and logged. If the script fails,
 /// the failure will also be logged.
+#[derive(Debug)]
 pub struct ScriptAction {
     directory: String,
     command: String,
@@ -23,6 +23,9 @@ pub struct ScriptAction {
 /// Custom error describing the error cases for the ScriptAction.
 #[derive(Debug, Error)]
 pub enum ScriptError {
+    /// The command is invalid (usually mismatched quotations etc.).
+    #[error("the command {0:?} cannot be parsed")]
+    CommandParseFailure(String),
     /// The underlying Rust command creation failed. The parameter contains the error.
     #[error("the script cannot run: {0}")]
     ScriptFailure(#[from] std::io::Error),
@@ -38,7 +41,8 @@ pub enum ScriptError {
 impl From<ScriptError> for ActionError {
     fn from(value: ScriptError) -> Self {
         match value {
-            ScriptError::ScriptFailure(_)
+            ScriptError::CommandParseFailure(_)
+            | ScriptError::ScriptFailure(_)
             | ScriptError::NonZeroExitcode(_)
             | ScriptError::OutputFailure => ActionError::FailedAction(value.to_string()),
         }
@@ -47,9 +51,15 @@ impl From<ScriptError> for ActionError {
 
 impl ScriptAction {
     /// Creates a new script to be started in the given directory.
-    pub fn new(directory: String, command: String) -> Self {
-        // We can run `sh_dangerous`, because it is on the user's computer.
-        let script = sh_dangerous(&command)
+    pub fn new(
+        directory: String,
+        original_command: String,
+        runs_in_shell: bool,
+    ) -> Result<Self, ScriptError> {
+        let (command, script) = create_command(&original_command, runs_in_shell)
+            .ok_or(ScriptError::CommandParseFailure(original_command))?;
+
+        let script = script
             .env("CI", "true")
             .env("GW_ACTION_NAME", ACTION_NAME)
             .env("GW_DIRECTORY", &directory)
@@ -58,11 +68,11 @@ impl ScriptAction {
             .dir(&directory)
             .unchecked();
 
-        ScriptAction {
+        Ok(ScriptAction {
             directory,
             command,
             script,
-        }
+        })
     }
 
     fn run_inner(&self, context: &Context) -> Result<(), ScriptError> {
@@ -149,10 +159,21 @@ mod tests {
 
     #[test]
     fn it_should_create_new_script() {
-        let action = ScriptAction::new(String::from("."), String::from("echo test"));
+        let action =
+            ScriptAction::new(String::from("."), String::from("echo test"), false).unwrap();
 
-        assert_eq!("echo test", action.command);
+        assert_eq!("echo", action.command);
         assert_eq!(".", action.directory);
+    }
+
+    #[test]
+    fn it_should_fail_if_command_is_invalid() {
+        let result = ScriptAction::new(String::from("."), String::from("echo 'test"), false);
+
+        assert!(
+            matches!(result, Err(ScriptError::CommandParseFailure(_))),
+            "{result:?} should match CommandParseFailure"
+        );
     }
 
     #[test]
@@ -160,12 +181,12 @@ mod tests {
         testing_logger::setup();
 
         let command = "echo test";
-        let action = ScriptAction::new(String::from("."), String::from(command));
+        let action = ScriptAction::new(String::from("."), String::from(command), false)?;
 
         let context: Context = HashMap::new();
         action.run_inner(&context)?;
 
-        validate_output(command, |lines| {
+        validate_output("echo", |lines| {
             assert_eq!(vec!["test"], lines);
         });
 
@@ -177,7 +198,7 @@ mod tests {
         testing_logger::setup();
 
         let command = "printenv";
-        let action = ScriptAction::new(String::from("."), String::from(command));
+        let action = ScriptAction::new(String::from("."), String::from(command), false)?;
 
         let context: Context = HashMap::from([
             ("TRIGGER_NAME", "TEST-TRIGGER".to_string()),
@@ -204,7 +225,7 @@ mod tests {
         std::env::set_var("GW_TEST", "GW_TEST");
 
         let command = "printenv";
-        let action = ScriptAction::new(String::from("."), String::from("printenv"));
+        let action = ScriptAction::new(String::from("."), String::from(command), false)?;
 
         let context: Context = HashMap::new();
         action.run_inner(&context)?;
@@ -221,12 +242,12 @@ mod tests {
         testing_logger::setup();
 
         let command = "echo err >&2";
-        let action = ScriptAction::new(String::from("."), String::from(command));
+        let action = ScriptAction::new(String::from("."), String::from(command), true)?;
 
         let context: Context = HashMap::new();
         action.run_inner(&context)?;
 
-        validate_output(command, |lines| {
+        validate_output("echo", |lines| {
             assert_eq!(vec!["err"], lines);
         });
 
@@ -235,7 +256,7 @@ mod tests {
 
     #[test]
     fn it_should_fail_if_the_script_fails() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("false"));
+        let action = ScriptAction::new(String::from("."), String::from("false"), false)?;
 
         let context: Context = HashMap::new();
         let result = action.run_inner(&context);
@@ -249,8 +270,11 @@ mod tests {
 
     #[test]
     fn it_should_fail_if_the_script_returns_non_utf8() -> Result<(), ScriptError> {
-        let action =
-            ScriptAction::new(String::from("."), String::from("/bin/echo -e '\\xc3\\x28'"));
+        let action = ScriptAction::new(
+            String::from("."),
+            String::from("/bin/echo -e '\\xc3\\x28'"),
+            true,
+        )?;
 
         let context: Context = HashMap::new();
         let result = action.run_inner(&context);

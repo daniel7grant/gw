@@ -97,14 +97,18 @@ fn main_inner() -> Result<(), MainError> {
     let mut actions: Vec<Box<dyn Action>> = vec![];
     for arg_action in arg_actions {
         match arg_action {
-            ArgAction::Script(script) => {
+            ArgAction::Script(script, runs_in_shell) => {
                 debug!("Setting up ScriptAction {script:?} on change.");
-                actions.push(Box::new(ScriptAction::new(directory.clone(), script)));
+                actions.push(Box::new(
+                    ScriptAction::new(directory.clone(), script, runs_in_shell)
+                        .map_err(ActionError::from)?,
+                ));
             }
-            ArgAction::Process(process) => {
+            ArgAction::Process(process, runs_in_shell) => {
                 debug!("Setting up ProcessAction {process:?} on change.");
                 let mut process_params =
-                    ProcessParams::new(process, directory.clone()).map_err(ActionError::from)?;
+                    ProcessParams::new(process, directory.clone(), runs_in_shell)
+                        .map_err(ActionError::from)?;
 
                 if let Some(retries) = args.process_retries {
                     process_params.set_retries(retries);
