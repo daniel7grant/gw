@@ -19,6 +19,12 @@ For example for TypeScript, transpile to JS and run with Node.js:
 gw /path/to/repo -s 'npx tsc -p tsconfig.json' -p 'node dist/index.js'
 ```
 
+If you want to ensure that your code is correct, you can run the unit tests first:
+
+```sh
+gw /path/to/repo  -s 'npm run test' -s 'npx tsc -p tsconfig.json' -p 'node dist/index.js'
+```
+
 For Next.js and other frameworks that require a build step before starting, you can use:
 
 ```sh
@@ -31,8 +37,14 @@ For Go, you can either run it directly or build it first and run it as a subproc
 
 ```sh
 gw /path/to/repo -p 'go run main.go'
-# or 
+# or
 gw /path/to/repo -s 'go build main.go' -p './main'
+```
+
+You can add testing as a script, if you want to run the unit tests before the code is deployed:
+
+```sh
+gw /path/to/repo -s 'go test' -s 'go build main.go' -p './main'
 ```
 
 ### Rust
@@ -41,8 +53,14 @@ For Rust, you can either run it directly or build it first and run it as a subpr
 
 ```sh
 gw /path/to/repo -p 'cargo run --release'
-# or 
+# or
 gw /path/to/repo -s 'cargo build --release' -p './target/release/repo'
+```
+
+Add the tests here as well to make sure that the code is correct:
+
+```sh
+gw /path/to/repo -s 'cargo test' -s 'cargo build --release' -p './target/release/repo'
 ```
 
 Also checkout [Docker configuration](/guides/docker-compose).

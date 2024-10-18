@@ -13,7 +13,7 @@ To debug authentication issues, it is recommended to run `gw` with `-vvv` (traci
 
 For SSH it is recommended to use the ssh-keys that you are already using on your system. If you cloned the repository with a user, you can use the same user to run `gw`. If you are running `gw` in a container, you can mount the whole `.ssh` folder into `/root/.ssh` (`.ssh/known_hosts` is usually needed as well).
 
-> Note: If you only running `gw` for a single repository, for improved security use read-only [Deploy keys](#deploy-keys).
+> **Note**: If you only running `gw` for a single repository, for improved security use read-only [Deploy keys](#deploy-keys).
 
 By default SSH authentication checks these files for credentials:
 
@@ -62,7 +62,7 @@ gw /path/to/repo --ssh-key ~/.ssh/id_deploy
 
 Even though it is less common on servers, you can also use HTTPS for pulling repositories. By default `gw` will check credential helpers to extract username and passwords. If you want to set a username and password manually you can use the `--git-username` and `--git-token` fields.
 
-> Note: **Never** use your password as the `--git-token`, always use read-only [repository-level tokens](#repository-level-tokens) instead.
+> **Note**: **Never** use your password as the `--git-token`, always use read-only [repository-level tokens](#repository-level-tokens) instead.
 
 ```sh
 gw /path/to/repo --git-username username --git-token f7818t23fb1amsc

@@ -20,7 +20,7 @@ After=multi-user.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/gw /path/to/repo --script "echo ran from systemctl unit"
+ExecStart=/usr/bin/gw /path/to/repo -s 'echo ran from systemctl unit'
 Restart=always
 # run as a non-root user (recommended)
 User=myuser

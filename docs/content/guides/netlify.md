@@ -7,7 +7,7 @@ weight = 7
 
 If you want to generate a version for every commit of your code, and expose it as hashes, you can `gw` and environment variables.
 
-> Note: This solution **won't** be exactly like Netlify, it won't have the web UI, on-click rollbacks, etc. As this already requires a generous amount of ducktape, please be vary of using this on production. If you need all the features of Netlify, just use Netlify.
+> **Note**: This solution **won't** be exactly like Netlify, it won't have the web UI, on-click rollbacks, etc. As this already requires a generous amount of ducktape, please be vary of using this on production. If you need all the features of Netlify, just use Netlify.
 
 ## Project configuration
 
@@ -26,20 +26,20 @@ npx @11ty/eleventy --input=. --output=output/$GW_GIT_COMMIT_SHORT_SHA
 You can use this command to configure your `gw`:
 
 ```sh
-gw /path/to/repo -s 'jekyll build --destination=output/$GW_GIT_COMMIT_SHORT_SHA'
+gw /path/to/repo -S 'jekyll build --destination=output/$GW_GIT_COMMIT_SHORT_SHA'
 ```
 
 To build another version for the latest you can copy the files to another folder:
 
 ```sh
-gw /path/to/repo -s 'jekyll build --destination=output/$GW_GIT_COMMIT_SHORT_SHA' -s 'cp -r output/$GW_GIT_COMMIT_SHORT_SHA output/latest'
+gw /path/to/repo -S 'jekyll build --destination=output/$GW_GIT_COMMIT_SHORT_SHA' -S 'cp -r output/$GW_GIT_COMMIT_SHORT_SHA output/latest'
 ```
 
 ## Web server configuration
 
 One extra setup that you have to do is point your web server to this directory. By default you can use it as path prefixes, but it can be configured to sub domains to these directories. That way you could reach the commit `0c431ff1` on the url `0c431ff1.example.net`.
 
-> Make sure to setup wildcard domains in your DNS server so it redirects all domains to your server!
+> **Note**: Make sure to setup wildcard domains in your DNS server so it redirects all domains to your server!
 
 ## Nginx
 

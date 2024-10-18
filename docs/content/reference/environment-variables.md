@@ -1,5 +1,5 @@
 +++
-title = "Environment variables"
+title = "Env variables"
 weight = 3
 +++
 
@@ -9,7 +9,7 @@ The different steps can add variables to the context, which are exposed to the s
 All of these are prefixed with `GW_` to avoid collisions. The second part usually identifies the specific trigger,
 check or action.
 
-A good way to debug environment variables is to print the variables with `--script "printenv"`.
+A good way to debug environment variables is to print the variables with `-s "printenv"`.
 
 ## Trigger variables
 
@@ -41,9 +41,9 @@ These are the variables that are exposed from the check, which currently is alwa
 
 ## Action variables
 
-These are the variables added by the action, which currently is always script.
+These are the variables added by the action, which is script or process.
 
-| Variable name    | Example        | Notes                                       |
-| ---------------- | -------------- | ------------------------------------------- |
-| `GW_ACTION_NAME` | `SCRIPT`       | The identifier of the action.               |
-| `GW_DIRECTORY`   | `/src/http/gw` | The absolute path to the current directory. |
+| Variable name    | Example             | Notes                                       |
+| ---------------- | ------------------- | ------------------------------------------- |
+| `GW_ACTION_NAME` | `SCRIPT`, `PROCESS` | The identifier of the action.               |
+| `GW_DIRECTORY`   | `/src/http/gw`      | The absolute path to the current directory. |
