@@ -62,6 +62,7 @@ pub struct ProcessParams {
     retries: u32,
     stop_signal: Signal,
     stop_timeout: Duration,
+    runs_in_shell: bool,
 }
 
 impl ProcessParams {
@@ -80,6 +81,7 @@ impl ProcessParams {
             retries: 0,
             stop_signal: Signal::SIGTERM,
             stop_timeout: Duration::from_secs(10),
+            runs_in_shell,
         })
     }
 
@@ -111,8 +113,14 @@ pub struct Process {
 impl Process {
     fn start_child(params: &ProcessParams) -> Result<ReaderHandle, ProcessError> {
         info!(
-            "Starting process {:?} in {}.",
-            params.command, params.directory,
+            "Starting process {:?} {}in {}.",
+            params.command,
+            if params.runs_in_shell {
+                "in a shell "
+            } else {
+                ""
+            },
+            params.directory,
         );
 
         // Create child
@@ -250,7 +258,6 @@ impl Process {
 
             let start_time = Instant::now();
             while start_time.elapsed() < self.stop_timeout {
-                trace!("Testing process state.");
                 if let Ok(Some(output)) = child.try_wait() {
                     info!("Process stopped gracefully with status {}.", output.status);
                     return Ok(());
@@ -313,7 +320,6 @@ impl ProcessAction {
     }
 
     fn run_inner(&mut self) -> Result<(), ProcessError> {
-        debug!("Restarting process.");
         self.process
             .stop()
             .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
@@ -326,16 +332,7 @@ impl ProcessAction {
 impl Action for ProcessAction {
     /// Kills and restarts the subprocess.
     fn run(&mut self, _context: &Context) -> Result<(), ActionError> {
-        match self.run_inner() {
-            Ok(()) => {
-                debug!("Process restarted.");
-                Ok(())
-            }
-            Err(err) => {
-                error!("Failed: {err}.");
-                Err(err.into())
-            }
-        }
+        Ok(self.run_inner()?)
     }
 }
 

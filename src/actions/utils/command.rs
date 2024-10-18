@@ -24,19 +24,14 @@ pub fn create_command(original_command: &str, runs_in_shell: bool) -> Option<(St
     let split_args = shlex::split(original_command)?;
     let (command, args) = split_args.split_first()?;
 
-    trace!(
-        "Parsing {:?} to command {:?} and args {:?}.",
-        &original_command,
-        &command,
-        &args
-    );
-
     // If we are in a shell we can `sh_dangerous`, otherwise avoid bugs around shells
     let script = if runs_in_shell {
         sh_dangerous(original_command)
     } else {
         cmd(command, args)
     };
+
+    trace!("Parsed {original_command:?} to {script:?}.");
 
     Some((command.clone(), script))
 }

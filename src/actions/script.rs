@@ -1,7 +1,7 @@
 use super::{utils::command::create_command, Action, ActionError};
 use crate::context::Context;
 use duct::Expression;
-use log::{debug, error, info, trace};
+use log::{debug, error, info};
 use std::io::{BufRead, BufReader};
 use thiserror::Error;
 
@@ -18,6 +18,7 @@ pub struct ScriptAction {
     directory: String,
     command: String,
     script: Expression,
+    runs_in_shell: bool,
 }
 
 /// Custom error describing the error cases for the ScriptAction.
@@ -72,6 +73,7 @@ impl ScriptAction {
             directory,
             command,
             script,
+            runs_in_shell,
         })
     }
 
@@ -85,10 +87,19 @@ impl ScriptAction {
         }
 
         // Start the shell script
+        info!(
+            "Running script {:?} {}in {}.",
+            self.command,
+            if self.runs_in_shell {
+                "in a shell "
+            } else {
+                ""
+            },
+            self.directory,
+        );
         let child = script.reader()?;
 
         let mut reader = BufReader::new(&child).lines();
-        trace!("Reading lines from the script.");
         let command_id = self.command.as_str();
         while let Some(Ok(line)) = reader.next() {
             debug!("[{command_id}] {line}");
@@ -96,6 +107,7 @@ impl ScriptAction {
 
         if let Ok(Some(output)) = child.try_wait() {
             if output.status.success() {
+                info!("Script {:?} finished successfully.", self.command);
                 Ok(())
             } else {
                 Err(ScriptError::NonZeroExitcode(
@@ -113,21 +125,7 @@ impl Action for ScriptAction {
     /// If the script fails to start, return a non-zero error code or prints non-utf8
     /// characters, this function will result in an error.
     fn run(&mut self, context: &Context) -> Result<(), ActionError> {
-        debug!(
-            "Running script: {} in directory {}.",
-            self.command, self.directory
-        );
-
-        match self.run_inner(context) {
-            Ok(()) => {
-                info!("Script {:?} finished successfully.", self.command);
-                Ok(())
-            }
-            Err(err) => {
-                error!("Failed: {err}.");
-                Err(err.into())
-            }
-        }
+        Ok(self.run_inner(context)?)
     }
 }
 
