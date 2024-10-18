@@ -86,10 +86,7 @@ impl GitCheck {
         Ok(GitCheck(repo))
     }
 
-    pub fn open(
-        directory: &str,
-        additional_host: Option<String>,
-    ) -> Result<Self, CheckError> {
+    pub fn open(directory: &str, additional_host: Option<String>) -> Result<Self, CheckError> {
         setup_known_hosts(additional_host)?;
         setup_gitconfig(directory)?;
 
@@ -359,7 +356,13 @@ mod tests {
             context.get("GIT_BEFORE_COMMIT_SHORT_SHA").unwrap()
         );
         assert_eq!("origin", context.get("GIT_REMOTE_NAME").unwrap());
-        assert_eq!(remote, context.get("GIT_REMOTE_URL").unwrap());
+        assert_eq!(
+            remote,
+            fs::canonicalize(context.get("GIT_REMOTE_URL").unwrap())
+                .unwrap()
+                .to_str()
+                .unwrap()
+        );
 
         cleanup_repository(&local)?;
 
@@ -406,7 +409,13 @@ mod tests {
             context.get("GIT_COMMIT_SHORT_SHA").unwrap()
         );
         assert_eq!("origin", context.get("GIT_REMOTE_NAME").unwrap());
-        assert_eq!(remote, context.get("GIT_REMOTE_URL").unwrap());
+        assert_eq!(
+            remote,
+            fs::canonicalize(context.get("GIT_REMOTE_URL").unwrap())
+                .unwrap()
+                .to_str()
+                .unwrap()
+        );
 
         cleanup_repository(&local)?;
 
