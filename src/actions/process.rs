@@ -2,16 +2,18 @@ use super::{Action, ActionError};
 use crate::context::Context;
 use duct::ReaderHandle;
 use log::{debug, error, info, trace, warn};
-use nix::{errno::Errno, sys::signal::Signal};
 use std::{
     io::{BufRead, BufReader},
-    os::unix::process::ExitStatusExt,
-    str::FromStr,
     sync::{Arc, RwLock},
     thread::{self, sleep},
     time::Duration,
 };
 use thiserror::Error;
+
+#[cfg(unix)]
+use nix::{errno::Errno, sys::signal::Signal};
+#[cfg(unix)]
+use std::{os::unix::process::ExitStatusExt, str::FromStr};
 
 const ACTION_NAME: &str = "PROCESS";
 
