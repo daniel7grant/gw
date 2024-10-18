@@ -54,7 +54,11 @@ pub fn start(
                     }
                 );
                 for action in actions.iter_mut() {
-                    let _ = action.run(&context);
+                    let result = action.run(&context);
+                    if let Err(err) = result {
+                        error!("Action failed, we will not continue: {err}.");
+                        break;
+                    }
                 }
             }
             Ok(false) => {
