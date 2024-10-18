@@ -374,9 +374,18 @@ mod tests {
     use std::{fs, time::Instant};
     use thread::sleep;
 
+    const EXIT_NONZERO: &str = "exit 1";
+    const SLEEP_INVALID: &str = "sleep '100";
+
+    #[cfg(unix)]
+    const SLEEP: &str = "sleep 100";
+
+    #[cfg(not(unix))]
+    const SLEEP: &str = "timeout /t 100";
+
     #[test]
     fn it_should_start_a_new_process() -> Result<(), ProcessError> {
-        let params = ProcessParams::new(String::from("sleep 100"), String::from("."))?;
+        let params = ProcessParams::new(String::from(SLEEP), String::from("."))?;
         let mut action = ProcessAction::new(params)?;
         action.process.stop()?;
 
@@ -389,7 +398,7 @@ mod tests {
 
     #[test]
     fn it_should_fail_if_command_is_invalid() -> Result<(), ProcessError> {
-        let failing_command = String::from("sleep '100");
+        let failing_command = String::from(SLEEP_INVALID);
         let failing_params = ProcessParams::new(failing_command.clone(), String::from("."));
 
         assert_eq!(
@@ -404,7 +413,7 @@ mod tests {
     #[cfg(unix)]
     fn it_should_fail_if_signal_is_invalid() -> Result<(), ProcessError> {
         let failing_signal = String::from("SIGWTF");
-        let failing_params = ProcessParams::new(String::from("sleep 100"), String::from("."))?
+        let failing_params = ProcessParams::new(String::from(SLEEP), String::from("."))?
             .set_stop_signal(failing_signal.clone());
 
         assert_eq!(
@@ -418,7 +427,7 @@ mod tests {
     #[test]
     fn it_should_restart_the_process_gracefully() -> Result<(), ProcessError> {
         let stop_timeout = Duration::from_secs(5);
-        let params = ProcessParams::new(String::from("sleep 100"), String::from("."))?;
+        let params = ProcessParams::new(String::from(SLEEP), String::from("."))?;
         let mut action = ProcessAction::new(params)?;
 
         let initial_time = Instant::now();
@@ -455,7 +464,7 @@ mod tests {
 
     #[test]
     fn it_should_retry_the_process_if_it_exits_until_the_retry_count() -> Result<(), ProcessError> {
-        let params = ProcessParams::new(String::from("false"), String::from("."))?;
+        let params = ProcessParams::new(String::from(EXIT_NONZERO), String::from("."))?;
         let action = ProcessAction::new(params)?;
 
         sleep(Duration::from_secs(1));
@@ -468,6 +477,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn it_should_reset_the_retries() -> Result<(), ProcessError> {
         let tailed_file = "./test_directories/tailed_file";
         let params = ProcessParams::new(format!("tail -f {tailed_file}"), String::from("."))?;

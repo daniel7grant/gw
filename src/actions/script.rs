@@ -115,9 +115,10 @@ mod tests {
     use std::collections::HashMap;
 
     const ECHO_TEST: &str = "echo test";
-    const ECHO_INVALID_UNICODE: &str = "python -c \"import sys; sys.stdout.buffer.write(b'\\xc3\\x28')\"";
     const EXIT_NONZERO: &str = "exit 1";
-
+    
+    #[cfg(unix)]
+    const ECHO_INVALID_UNICODE: &str = "python -c \"import sys; sys.stdout.buffer.write(b'\\xc3\\x28')\"";
     #[cfg(unix)]
     const ECHO_STDERR: &str = "printf err >&2";
     #[cfg(unix)]
@@ -211,6 +212,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn it_should_fail_if_the_script_returns_non_utf8() -> Result<(), ScriptError> {
         let command = String::from(ECHO_INVALID_UNICODE);
         let action = ScriptAction::new(String::from("."), command);
