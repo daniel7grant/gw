@@ -50,7 +50,7 @@ If you are using ssh-keys, mount the `.ssh` directory as well, so it can pull. F
 
 Most applications have many dependencies and complicated setups, and are already running on Docker. In these cases it is often preferable to build the `gw` image on top of the already existing application image.
 
-**NOTE**: This doesn't mean that these should be running in the same container, but they can use the same base image in two separate containers. It is a common wisdom that one container should run one thing.
+> **Note**: This doesn't mean that these should be running in the same container, but they can use the same base image in two separate containers. It is a common wisdom that one container should run one thing.
 
 For this we can start off of our application image as a base layer and add the `gw` binary in a `COPY` layer. You can simply wrap your existing command using subprocess mode (`-p`) and it will restart the script every time a pull happened.
 

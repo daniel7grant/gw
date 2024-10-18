@@ -1,5 +1,5 @@
 +++
-title = "Command-line arguments"
+title = "CLI arguments"
 weight = 2
 +++
 
