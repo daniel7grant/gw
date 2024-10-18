@@ -116,15 +116,15 @@ mod tests {
 
     #[test]
     fn it_should_create_new_script() {
-        let action = ScriptAction::new(String::from("."), String::from("echo test"));
+        let action = ScriptAction::new(String::from("."), String::from("printf test"));
 
-        assert_eq!("echo test", action.command);
+        assert_eq!("printf test", action.command);
         assert_eq!(".", action.directory);
     }
 
     #[test]
     fn it_should_run_the_script() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("echo test"));
+        let action = ScriptAction::new(String::from("."), String::from("printf test"));
 
         let context: Context = HashMap::new();
         let output = action.run_inner(&context)?;
@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn it_should_catch_error_output() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("echo err >&2"));
+        let action = ScriptAction::new(String::from("."), String::from("printf err >&2"));
 
         let context: Context = HashMap::new();
         let output = action.run_inner(&context)?;
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn it_should_fail_if_the_script_returns_non_utf8() -> Result<(), ScriptError> {
         let action =
-            ScriptAction::new(String::from("."), String::from("/bin/echo -e '\\xc3\\x28'"));
+            ScriptAction::new(String::from("."), String::from("printf '\\xc3\\x28'"));
 
         let context: Context = HashMap::new();
         let result = action.run_inner(&context);
