@@ -15,12 +15,13 @@ use gw_bin::{
         Trigger,
     },
 };
-use log::{debug, error, warn, LevelFilter, SetLoggerError};
-use simple_logger::SimpleLogger;
+use log::{debug, error, warn, SetLoggerError};
+use logger::init_logger;
 use std::{fs, process, time::Duration};
 use thiserror::Error;
 
 mod args;
+mod logger;
 
 #[derive(Debug, Error)]
 pub enum MainError {
@@ -30,6 +31,8 @@ pub enum MainError {
     NonExistentDirectory(String),
     #[error("Check failed: {0}.")]
     FailedCheck(#[from] CheckError),
+    #[error("Failed setting up logger with timezones.")]
+    FailedLoggerTimezones,
     #[error("Failed setting up logger.")]
     FailedLogger(#[from] SetLoggerError),
     #[error(transparent)]
@@ -46,15 +49,7 @@ fn main_inner() -> Result<(), MainError> {
         process::exit(0);
     }
 
-    SimpleLogger::new()
-        .with_level(match (args.quiet, args.verbose) {
-            (true, _) => LevelFilter::Error,
-            (false, 0) => LevelFilter::Info,
-            (false, 1) => LevelFilter::Debug,
-            (false, _) => LevelFilter::Trace,
-        })
-        .env()
-        .init()?;
+    init_logger(&args)?;
 
     // Check if directory exists and convert to full path
     let directory_relative = args.directory.ok_or(MainError::MissingDirectoryArg)?;
@@ -108,12 +103,14 @@ fn main_inner() -> Result<(), MainError> {
             process_params.set_retries(retries);
         }
         if let Some(stop_signal) = args.stop_signal {
-            process_params.set_stop_signal(stop_signal).map_err(ActionError::from)?;
+            process_params
+                .set_stop_signal(stop_signal)
+                .map_err(ActionError::from)?;
         }
         if let Some(stop_timeout) = args.stop_timeout {
             process_params.set_stop_timeout(stop_timeout.into());
         }
- 
+
         actions.push(Box::new(
             ProcessAction::new(process_params).map_err(ActionError::from)?,
         ));
