@@ -116,7 +116,7 @@ mod tests {
 
     const ECHO_TEST: &str = "printf test";
     const ECHO_STDERR: &str = "printf err >&2";
-    const ECHO_INVALID_UNICODE: &str = "/bin/printf '\\xc3\\x28'";
+    const ECHO_INVALID_UNICODE: &str = "/usr/bin/printf '\\xc3\\x28'";
     const PRINTENV: &str = "printenv";
     const FALSE: &str = "false";
 
