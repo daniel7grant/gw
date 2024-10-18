@@ -66,7 +66,7 @@ fn main_inner() -> Result<(), MainError> {
         .to_string();
 
     // Setup triggers.
-    let mut triggers: Vec<Box<dyn Trigger>> = vec![Box::new(SignalTrigger)];
+    let mut triggers: Vec<Box<dyn Trigger>> = vec![Box::new(SignalTrigger::new())];
     if args.once {
         debug!("Setting up OnceTrigger (this will disable all other triggers).");
         triggers.push(Box::new(OnceTrigger));
@@ -108,12 +108,14 @@ fn main_inner() -> Result<(), MainError> {
             process_params.set_retries(retries);
         }
         if let Some(stop_signal) = args.stop_signal {
-            process_params.set_stop_signal(stop_signal).map_err(ActionError::from)?;
+            process_params
+                .set_stop_signal(stop_signal)
+                .map_err(ActionError::from)?;
         }
         if let Some(stop_timeout) = args.stop_timeout {
             process_params.set_stop_timeout(stop_timeout.into());
         }
- 
+
         actions.push(Box::new(
             ProcessAction::new(process_params).map_err(ActionError::from)?,
         ));

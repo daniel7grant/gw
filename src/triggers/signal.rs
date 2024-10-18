@@ -1,28 +1,51 @@
 use super::{Trigger, TriggerError};
 use crate::context::Context;
 use log::debug;
-use std::sync::mpsc::Sender;
+use std::sync::{atomic::AtomicU8, mpsc::Sender};
 
 const _TRIGGER_NAME: &str = "SIGNAL";
 
 /// A trigger that terminates the program on a signal.
-pub struct SignalTrigger;
+pub struct SignalTrigger {
+    trigger_count: AtomicU8,
+}
 
 impl SignalTrigger {
+    pub fn new() -> SignalTrigger {
+        SignalTrigger {
+            trigger_count: AtomicU8::new(0),
+        }
+    }
+
     #[cfg(unix)]
     fn listen_inner<I>(&self, tx: Sender<Option<Context>>, signals: I) -> Result<(), TriggerError>
     where
         I: IntoIterator<Item = i32>,
     {
         use log::error;
+        use std::{process, sync::atomic::Ordering, thread::sleep, time::Duration};
         for signal in signals.into_iter() {
-            debug!("Got signal {signal}, terminating after all actions finished.");
-            if tx.send(None).is_err() {
-                error!("Failed terminating the application with signal {signal}.");
+            let previous = self.trigger_count.fetch_add(1, Ordering::Acquire);
+            if previous == 0 {
+                debug!("Got signal {signal}, terminating after all actions finished.",);
+                if tx.send(None).is_err() {
+                    error!("Failed terminating the application with signal {signal}.");
+                }
+            } else {
+                // Allow a little time for the clean shutdown to still happen.
+                sleep(Duration::from_millis(100));
+                debug!("Got signal {signal}, terminating right now.",);
+                process::exit(signal);
             }
         }
 
         Ok(())
+    }
+}
+
+impl Default for SignalTrigger {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -61,7 +84,7 @@ mod tests {
 
     #[test]
     fn it_should_trigger_on_the_first_signal() {
-        let trigger = SignalTrigger;
+        let trigger = SignalTrigger::new();
         let (tx, rx) = mpsc::channel::<Option<Context>>();
 
         let signals = vec![9];
