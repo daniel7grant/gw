@@ -369,23 +369,28 @@ impl Action for ProcessAction {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(unix), allow(unused_imports))]
 mod tests {
     use super::*;
     use std::{fs, time::Instant};
     use thread::sleep;
 
-    const EXIT_NONZERO: &str = "exit 1";
+    const SLEEP_PARSING: &str = "sleep 100";
     const SLEEP_INVALID: &str = "sleep '100";
 
     #[cfg(unix)]
+    const EXIT_NONZERO: &str = "/bin/sh -c 'exit 1'";
+    #[cfg(unix)]
     const SLEEP: &str = "sleep 100";
 
+    #[cfg(not(unix))]
+    const EXIT_NONZERO: &str = "cmd /c 'exit 1'";
     #[cfg(not(unix))]
     const SLEEP: &str = "timeout /t 100";
 
     #[test]
     fn it_should_start_a_new_process() -> Result<(), ProcessError> {
-        let params = ProcessParams::new(String::from(SLEEP), String::from("."))?;
+        let params = ProcessParams::new(String::from(SLEEP_PARSING), String::from("."))?;
         let mut action = ProcessAction::new(params)?;
         action.process.stop()?;
 
