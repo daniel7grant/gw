@@ -114,11 +114,17 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
-    const ECHO_TEST: &str = "printf test";
+    const ECHO_TEST: &str = "echo test";
+    const ECHO_INVALID_UNICODE: &str = "python -c \"import sys; sys.stdout.buffer.write(b'\\xc3\\x28')\"";
+    const EXIT_NONZERO: &str = "exit 1";
+
+    #[cfg(unix)]
     const ECHO_STDERR: &str = "printf err >&2";
-    const ECHO_INVALID_UNICODE: &str = "/usr/bin/printf '\\xc3\\x28'";
+    #[cfg(unix)]
     const PRINTENV: &str = "printenv";
-    const FALSE: &str = "false";
+
+    #[cfg(not(unix))]
+    const PRINTENV: &str = "set";
 
     #[test]
     fn it_should_create_new_script() {
@@ -177,6 +183,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn it_should_catch_error_output() -> Result<(), ScriptError> {
         let command = String::from(ECHO_STDERR);
         let action = ScriptAction::new(String::from("."), command);
@@ -190,7 +197,7 @@ mod tests {
 
     #[test]
     fn it_should_fail_if_the_script_fails() -> Result<(), ScriptError> {
-        let command = String::from(FALSE);
+        let command = String::from(EXIT_NONZERO);
         let action = ScriptAction::new(String::from("."), command);
 
         let context: Context = HashMap::new();
