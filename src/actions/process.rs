@@ -97,6 +97,7 @@ impl ProcessParams {
         self.retries = retries;
     }
 
+    #[cfg_attr(not(unix), allow(unused_variables))]
     pub fn set_stop_signal(&mut self, stop_signal: String) -> Result<(), ProcessError> {
         #[cfg(unix)]
         {
@@ -107,6 +108,7 @@ impl ProcessParams {
         Ok(())
     }
 
+    #[cfg_attr(not(unix), allow(unused_variables))]
     pub fn set_stop_timeout(&mut self, stop_timeout: Duration) {
         #[cfg(unix)]
         {
