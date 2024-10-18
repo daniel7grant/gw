@@ -25,22 +25,22 @@ pub struct Args {
     #[options(free)]
     pub directory: Option<String>,
 
-    /// The script to run on changes, you can define multiple times.
+    /// A script to run on changes, you can define multiple times.
     ///
     /// If there are no scripts given, it will only pull.
-    #[options(long = "script")]
+    #[options(long = "script", meta = "SCRIPT")]
     pub scripts: Vec<String>,
 
-    /// Run the script to run on changes in a shell.
-    #[options(short = "S", no_long)]
+    /// Run a script in a shell.
+    #[options(short = "S", no_long, meta = "SCRIPT")]
     pub scripts_with_shell: Vec<String>,
 
     /// A background process that will be restarted on change.
-    #[options()]
+    #[options(meta = "PROCESS")]
     pub process: Option<String>,
 
     /// Run a background process in a shell.
-    #[options(short = "P", no_long)]
+    #[options(short = "P", no_long, meta = "PROCESS")]
     pub process_with_shell: Option<String>,
 
     /// Try to pull only once. Useful for cronjobs.

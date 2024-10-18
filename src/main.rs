@@ -28,6 +28,8 @@ pub enum MainError {
     MissingDirectoryArg,
     #[error("Directory {0} not found.")]
     NonExistentDirectory(String),
+    #[error("You cannot start multiple processes, only add -p or -P once.")]
+    MultipleProcessArgs,
     #[error("Check failed: {0}.")]
     FailedCheck(#[from] CheckError),
     #[error("Failed setting up logger.")]
@@ -94,6 +96,14 @@ fn main_inner() -> Result<(), MainError> {
     let mut check: Box<dyn Check> = Box::new(git_check);
 
     // Setup actions.
+    if arg_actions
+        .iter()
+        .filter(|a| matches!(a, ArgAction::Process(_, _)))
+        .count()
+        > 1
+    {
+        return Err(MainError::MultipleProcessArgs);
+    }
     let mut actions: Vec<Box<dyn Action>> = vec![];
     for arg_action in arg_actions {
         match arg_action {
