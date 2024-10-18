@@ -114,17 +114,25 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
+    const ECHO_TEST: &str = "printf test";
+    const ECHO_STDERR: &str = "printf err >&2";
+    const ECHO_INVALID_UNICODE: &str = "/bin/printf '\\xc3\\x28'";
+    const PRINTENV: &str = "printenv";
+    const FALSE: &str = "false";
+
     #[test]
     fn it_should_create_new_script() {
-        let action = ScriptAction::new(String::from("."), String::from("printf test"));
+        let command = String::from(ECHO_TEST);
+        let action = ScriptAction::new(String::from("."), command);
 
-        assert_eq!("printf test", action.command);
+        assert_eq!(ECHO_TEST, action.command);
         assert_eq!(".", action.directory);
     }
 
     #[test]
     fn it_should_run_the_script() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("printf test"));
+        let command = String::from(ECHO_TEST);
+        let action = ScriptAction::new(String::from("."), command);
 
         let context: Context = HashMap::new();
         let output = action.run_inner(&context)?;
@@ -135,7 +143,8 @@ mod tests {
 
     #[test]
     fn it_should_set_the_env_vars() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("printenv"));
+        let command = String::from(PRINTENV);
+        let action = ScriptAction::new(String::from("."), command);
 
         let context: Context = HashMap::from([
             ("TRIGGER_NAME", "TEST-TRIGGER".to_string()),
@@ -156,7 +165,8 @@ mod tests {
     fn it_should_keep_the_already_set_env_vars() -> Result<(), ScriptError> {
         std::env::set_var("GW_TEST", "GW_TEST");
 
-        let action = ScriptAction::new(String::from("."), String::from("printenv"));
+        let command = String::from(PRINTENV);
+        let action = ScriptAction::new(String::from("."), command);
 
         let context: Context = HashMap::new();
         let output = action.run_inner(&context)?;
@@ -168,7 +178,8 @@ mod tests {
 
     #[test]
     fn it_should_catch_error_output() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("printf err >&2"));
+        let command = String::from(ECHO_STDERR);
+        let action = ScriptAction::new(String::from("."), command);
 
         let context: Context = HashMap::new();
         let output = action.run_inner(&context)?;
@@ -179,7 +190,8 @@ mod tests {
 
     #[test]
     fn it_should_fail_if_the_script_fails() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("false"));
+        let command = String::from(FALSE);
+        let action = ScriptAction::new(String::from("."), command);
 
         let context: Context = HashMap::new();
         let result = action.run_inner(&context);
@@ -193,8 +205,8 @@ mod tests {
 
     #[test]
     fn it_should_fail_if_the_script_returns_non_utf8() -> Result<(), ScriptError> {
-        let action =
-            ScriptAction::new(String::from("."), String::from("printf '\\xc3\\x28'"));
+        let command = String::from(ECHO_INVALID_UNICODE);
+        let action = ScriptAction::new(String::from("."), command);
 
         let context: Context = HashMap::new();
         let result = action.run_inner(&context);
