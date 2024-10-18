@@ -33,6 +33,7 @@ pub enum ProcessError {
     #[error("the script cannot be stopped: {0}")]
     StopFailure(String),
     /// Killing the command failed.
+    #[cfg(unix)]
     #[error("killing the process failed with error: {0}")]
     KillFailed(#[from] Errno),
     /// The lock on the child is poisoned: this means the thread failed while holding the lock.
@@ -46,23 +47,21 @@ impl From<ProcessError> for ActionError {
             ProcessError::CommandParseFailure(_) | ProcessError::SignalParseFailure(_) => {
                 ActionError::Misconfigured(value.to_string())
             }
-            ProcessError::StartFailure(_)
-            | ProcessError::StopFailure(_)
-            | ProcessError::KillFailed(_)
-            | ProcessError::MutexPoisoned => ActionError::FailedAction(value.to_string()),
+            _ => ActionError::FailedAction(value.to_string()),
         }
     }
 }
 
 /// Parameters for the process.
 #[derive(Debug, Clone)]
-#[cfg_attr(unix, allow(dead_code))]
 pub struct ProcessParams {
     directory: String,
     command: String,
     args: Vec<String>,
     retries: u32,
+    #[cfg(unix)]
     stop_signal: Signal,
+    #[cfg(unix)]
     stop_timeout: Duration,
 }
 
@@ -87,7 +86,9 @@ impl ProcessParams {
             command: command.clone(),
             args: args.to_vec(),
             retries: 0,
+            #[cfg(unix)]
             stop_signal: Signal::SIGTERM,
+            #[cfg(unix)]
             stop_timeout: Duration::from_secs(10),
         })
     }
@@ -96,6 +97,7 @@ impl ProcessParams {
         self.retries = retries;
     }
 
+    #[cfg(unix)]
     pub fn set_stop_signal(&mut self, stop_signal: String) -> Result<(), ProcessError> {
         self.stop_signal = Signal::from_str(&stop_signal)
             .map_err(|_| ProcessError::SignalParseFailure(stop_signal))?;
@@ -103,6 +105,7 @@ impl ProcessParams {
         Ok(())
     }
 
+    #[cfg(unix)]
     pub fn set_stop_timeout(&mut self, stop_timeout: Duration) {
         self.stop_timeout = stop_timeout;
     }
@@ -113,7 +116,9 @@ impl ProcessParams {
 #[cfg_attr(unix, allow(dead_code))]
 pub struct Process {
     child: Arc<RwLock<Option<ReaderHandle>>>,
+    #[cfg(unix)]
     stop_signal: Signal,
+    #[cfg(unix)]
     stop_timeout: Duration,
 }
 
@@ -167,7 +172,9 @@ impl Process {
                         debug!("[{command_id}] {line}");
                     }
 
+                    #[cfg_attr(not(unix), allow(unused_variables))]
                     if let Ok(Some(output)) = stdout.try_wait() {
+                        #[cfg(unix)]
                         if output.status.signal().is_some() {
                             trace!("Process is signalled, no retries necessary.");
                             return;
@@ -226,7 +233,9 @@ impl Process {
 
         Ok(Process {
             child,
+            #[cfg(unix)]
             stop_signal: params.stop_signal,
+            #[cfg(unix)]
             stop_timeout: params.stop_timeout,
         })
     }
@@ -386,6 +395,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn it_should_fail_if_signal_is_invalid() -> Result<(), ProcessError> {
         let failing_signal = String::from("SIGWTF");
         let failing_params = ProcessParams::new(String::from("sleep 100"), String::from("."))?
