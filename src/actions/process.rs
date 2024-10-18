@@ -97,17 +97,21 @@ impl ProcessParams {
         self.retries = retries;
     }
 
-    #[cfg(unix)]
     pub fn set_stop_signal(&mut self, stop_signal: String) -> Result<(), ProcessError> {
-        self.stop_signal = Signal::from_str(&stop_signal)
-            .map_err(|_| ProcessError::SignalParseFailure(stop_signal))?;
+        #[cfg(unix)]
+        {
+            self.stop_signal = Signal::from_str(&stop_signal)
+                .map_err(|_| ProcessError::SignalParseFailure(stop_signal))?;
+        }
 
         Ok(())
     }
 
-    #[cfg(unix)]
     pub fn set_stop_timeout(&mut self, stop_timeout: Duration) {
-        self.stop_timeout = stop_timeout;
+        #[cfg(unix)]
+        {
+            self.stop_timeout = stop_timeout;
+        }
     }
 }
 
