@@ -520,6 +520,11 @@ mod tests {
         perms.set_readonly(true);
         fs::set_permissions(&local, perms)?;
 
+        let perms = fs::metadata(&local)?.permissions();
+        println!("{local}   {:?}", perms.readonly());
+        let perms = fs::metadata(format!("{local}/1"))?.permissions();
+        println!("{local}/1 {:?}", perms.readonly());
+
         let mut check: GitCheck = GitCheck::open_inner(&local)?;
         let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
