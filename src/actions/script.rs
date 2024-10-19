@@ -99,10 +99,13 @@ impl ScriptAction {
         );
         let child = script.reader()?;
 
-        let mut reader = BufReader::new(&child).lines();
+        let reader = BufReader::new(&child).lines();
         let command_id = self.command.as_str();
-        while let Some(Ok(line)) = reader.next() {
-            debug!("[{command_id}] {line}");
+        for line in reader {
+            match line {
+                Ok(line) => debug!("[{command_id}] {line}"),
+                Err(_) => debug!("[{command_id}] <output cannot be parsed>"),
+            }
         }
 
         if let Ok(Some(output)) = child.try_wait() {
@@ -155,10 +158,24 @@ mod tests {
         });
     }
 
+    const ECHO_TEST: &str = "echo test";
+    const EXIT_NONZERO: &str = "exit 1";
+
+    #[cfg(unix)]
+    const ECHO_INVALID_UNICODE: &str =
+        "python -c \"import sys; sys.stdout.buffer.write(b'\\xc3\\x28')\"; sys.stdout.flush()";
+    #[cfg(unix)]
+    const ECHO_STDERR: &str = "echo err >&2";
+    #[cfg(unix)]
+    const PRINTENV: &str = "printenv";
+
+    #[cfg(not(unix))]
+    const PRINTENV: &str = "set";
+
     #[test]
     fn it_should_create_new_script() {
-        let action =
-            ScriptAction::new(String::from("."), String::from("echo test"), false).unwrap();
+        let command = String::from(ECHO_TEST);
+        let action = ScriptAction::new(String::from("."), command, true).unwrap();
 
         assert_eq!("echo", action.command);
         assert_eq!(".", action.directory);
@@ -178,8 +195,8 @@ mod tests {
     fn it_should_run_the_script() -> Result<(), ScriptError> {
         testing_logger::setup();
 
-        let command = "echo test";
-        let action = ScriptAction::new(String::from("."), String::from(command), false)?;
+        let command = String::from(ECHO_TEST);
+        let action = ScriptAction::new(String::from("."), command, true)?;
 
         let context: Context = HashMap::new();
         action.run_inner(&context)?;
@@ -195,8 +212,8 @@ mod tests {
     fn it_should_set_the_env_vars() -> Result<(), ScriptError> {
         testing_logger::setup();
 
-        let command = "printenv";
-        let action = ScriptAction::new(String::from("."), String::from(command), false)?;
+        let command = String::from(PRINTENV);
+        let action = ScriptAction::new(String::from("."), command, false)?;
 
         let context: Context = HashMap::from([
             ("TRIGGER_NAME", "TEST-TRIGGER".to_string()),
@@ -204,8 +221,7 @@ mod tests {
         ]);
         action.run_inner(&context)?;
 
-        validate_output(command, |lines| {
-            dbg!(&lines);
+        validate_output(PRINTENV, |lines| {
             assert!(lines.contains(&"CI=true"));
             assert!(lines.contains(&"GW_TRIGGER_NAME=TEST-TRIGGER"));
             assert!(lines.contains(&"GW_CHECK_NAME=TEST-CHECK"));
@@ -222,13 +238,13 @@ mod tests {
 
         std::env::set_var("GW_TEST", "GW_TEST");
 
-        let command = "printenv";
-        let action = ScriptAction::new(String::from("."), String::from(command), false)?;
+        let command = String::from(PRINTENV);
+        let action = ScriptAction::new(String::from("."), command, false)?;
 
         let context: Context = HashMap::new();
         action.run_inner(&context)?;
 
-        validate_output(command, |lines| {
+        validate_output(PRINTENV, |lines| {
             assert!(lines.contains(&"GW_TEST=GW_TEST"));
         });
 
@@ -236,11 +252,12 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn it_should_catch_error_output() -> Result<(), ScriptError> {
         testing_logger::setup();
 
-        let command = "echo err >&2";
-        let action = ScriptAction::new(String::from("."), String::from(command), true)?;
+        let command = String::from(ECHO_STDERR);
+        let action = ScriptAction::new(String::from("."), command, true)?;
 
         let context: Context = HashMap::new();
         action.run_inner(&context)?;
@@ -253,32 +270,33 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
+    fn it_should_record_if_the_script_returns_non_utf8() -> Result<(), ScriptError> {
+        testing_logger::setup();
+
+        let command = String::from(ECHO_INVALID_UNICODE);
+        let action = ScriptAction::new(String::from("."), command, false)?;
+
+        let context: Context = HashMap::new();
+        action.run_inner(&context)?;
+
+        validate_output("python", |lines| {
+            assert_eq!(vec!["<output cannot be parsed>"], lines);
+        });
+
+        Ok(())
+    }
+
+    #[test]
     fn it_should_fail_if_the_script_fails() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(String::from("."), String::from("false"), false)?;
+        let command = String::from(EXIT_NONZERO);
+        let action = ScriptAction::new(String::from("."), command, true)?;
 
         let context: Context = HashMap::new();
         let result = action.run_inner(&context);
         assert!(
             matches!(result, Err(ScriptError::NonZeroExitcode(1))),
             "{result:?} should match non zero exit code"
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn it_should_fail_if_the_script_returns_non_utf8() -> Result<(), ScriptError> {
-        let action = ScriptAction::new(
-            String::from("."),
-            String::from("/bin/echo -e '\\xc3\\x28'"),
-            true,
-        )?;
-
-        let context: Context = HashMap::new();
-        let result = action.run_inner(&context);
-        assert!(
-            matches!(result, Err(ScriptError::OutputFailure)),
-            "{result:?} should match non output failure"
         );
 
         Ok(())

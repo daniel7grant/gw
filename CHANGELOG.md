@@ -16,6 +16,7 @@
 - **Breaking change**: Scripts are now running directly, you can run it in a shell using `-S`
 - Only change gitconfig (safe.directory) if there isn't one
 - Don't overwrite script environment, use already set variables
+- If the user presses Ctrl+C a second time, the program exits immediately
 
 ## [0.3.2] - 2024-08-26
 

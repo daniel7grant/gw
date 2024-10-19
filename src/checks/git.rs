@@ -86,10 +86,7 @@ impl GitCheck {
         Ok(GitCheck(repo))
     }
 
-    pub fn open(
-        directory: &str,
-        additional_host: Option<String>,
-    ) -> Result<Self, CheckError> {
+    pub fn open(directory: &str, additional_host: Option<String>) -> Result<Self, CheckError> {
         setup_known_hosts(additional_host)?;
         setup_gitconfig(directory)?;
 
@@ -275,7 +272,7 @@ mod tests {
 
         let _ = GitCheck::open_inner(&local)?;
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -308,7 +305,7 @@ mod tests {
             "{error:?} should be Misconfigured"
         );
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -329,7 +326,7 @@ mod tests {
             "{error:?} should be Misconfigured"
         );
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -359,9 +356,14 @@ mod tests {
             context.get("GIT_BEFORE_COMMIT_SHORT_SHA").unwrap()
         );
         assert_eq!("origin", context.get("GIT_REMOTE_NAME").unwrap());
-        assert_eq!(remote, context.get("GIT_REMOTE_URL").unwrap());
+        assert_eq!(
+            remote,
+            fs::canonicalize(context.get("GIT_REMOTE_URL").unwrap())?
+                .to_str()
+                .unwrap()
+        );
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -406,9 +408,14 @@ mod tests {
             context.get("GIT_COMMIT_SHORT_SHA").unwrap()
         );
         assert_eq!("origin", context.get("GIT_REMOTE_NAME").unwrap());
-        assert_eq!(remote, context.get("GIT_REMOTE_URL").unwrap());
+        assert_eq!(
+            remote,
+            fs::canonicalize(context.get("GIT_REMOTE_URL").unwrap())?
+                .to_str()
+                .unwrap()
+        );
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -436,7 +443,7 @@ mod tests {
         let tags = get_tags(&local)?;
         assert_eq!(tags, "v0.1.0");
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -466,7 +473,7 @@ mod tests {
         // The pushed file should be pulled
         assert!(!Path::new(&format!("{local}/2")).exists());
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -493,12 +500,13 @@ mod tests {
             "{error:?} should be MergeConflict"
         );
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
 
     #[test]
+    #[cfg(unix)]
     fn it_should_fail_if_repository_is_not_accessible() -> Result<(), Box<dyn Error>> {
         let id = get_random_id();
         let local = format!("test_directories/{id}");
@@ -528,7 +536,7 @@ mod tests {
         perms.set_readonly(false);
         fs::set_permissions(&local, perms)?;
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
