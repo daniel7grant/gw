@@ -506,6 +506,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn it_should_fail_if_repository_is_not_accessible() -> Result<(), Box<dyn Error>> {
         let id = get_random_id();
         let local = format!("test_directories/{id}");
@@ -519,11 +520,6 @@ mod tests {
         let mut perms = fs::metadata(&local)?.permissions();
         perms.set_readonly(true);
         fs::set_permissions(&local, perms)?;
-
-        let perms = fs::metadata(&local)?.permissions();
-        println!("{local}   {:?}", perms.readonly());
-        let perms = fs::metadata(format!("{local}/1"))?.permissions();
-        println!("{local}/1 {:?}", perms.readonly());
 
         let mut check: GitCheck = GitCheck::open_inner(&local)?;
         let mut context: Context = HashMap::new();
