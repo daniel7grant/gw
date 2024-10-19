@@ -83,7 +83,13 @@ impl ScheduleTrigger {
         // TODO: handle overlaps
         let until_next_check = next_check - Instant::now();
         sleep(until_next_check);
-        Ok(true)
+
+        // We should handle if the sleep was too long and it went over the timeout
+        if let Some(final_timeout) = final_timeout {
+            Ok(Instant::now() < final_timeout)
+        } else {
+            Ok(true)
+        }
     }
 }
 
