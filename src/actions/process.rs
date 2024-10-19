@@ -2,16 +2,18 @@ use super::{Action, ActionError};
 use crate::context::Context;
 use duct::ReaderHandle;
 use log::{debug, error, info, trace, warn};
-use nix::{errno::Errno, sys::signal::Signal};
 use std::{
     io::{BufRead, BufReader},
-    os::unix::process::ExitStatusExt,
-    str::FromStr,
     sync::{Arc, RwLock},
     thread::{self, sleep},
     time::Duration,
 };
 use thiserror::Error;
+
+#[cfg(unix)]
+use nix::{errno::Errno, sys::signal::Signal};
+#[cfg(unix)]
+use std::{os::unix::process::ExitStatusExt, str::FromStr};
 
 const ACTION_NAME: &str = "PROCESS";
 
@@ -31,6 +33,7 @@ pub enum ProcessError {
     #[error("the script cannot be stopped: {0}")]
     StopFailure(String),
     /// Killing the command failed.
+    #[cfg(unix)]
     #[error("killing the process failed with error: {0}")]
     KillFailed(#[from] Errno),
     /// The lock on the child is poisoned: this means the thread failed while holding the lock.
@@ -44,23 +47,21 @@ impl From<ProcessError> for ActionError {
             ProcessError::CommandParseFailure(_) | ProcessError::SignalParseFailure(_) => {
                 ActionError::Misconfigured(value.to_string())
             }
-            ProcessError::StartFailure(_)
-            | ProcessError::StopFailure(_)
-            | ProcessError::KillFailed(_)
-            | ProcessError::MutexPoisoned => ActionError::FailedAction(value.to_string()),
+            _ => ActionError::FailedAction(value.to_string()),
         }
     }
 }
 
 /// Parameters for the process.
 #[derive(Debug, Clone)]
-#[cfg_attr(unix, allow(dead_code))]
 pub struct ProcessParams {
     directory: String,
     command: String,
     args: Vec<String>,
     retries: u32,
+    #[cfg(unix)]
     stop_signal: Signal,
+    #[cfg(unix)]
     stop_timeout: Duration,
 }
 
@@ -85,7 +86,9 @@ impl ProcessParams {
             command: command.clone(),
             args: args.to_vec(),
             retries: 0,
+            #[cfg(unix)]
             stop_signal: Signal::SIGTERM,
+            #[cfg(unix)]
             stop_timeout: Duration::from_secs(10),
         })
     }
@@ -94,15 +97,23 @@ impl ProcessParams {
         self.retries = retries;
     }
 
+    #[cfg_attr(not(unix), allow(unused_variables))]
     pub fn set_stop_signal(&mut self, stop_signal: String) -> Result<(), ProcessError> {
-        self.stop_signal = Signal::from_str(&stop_signal)
-            .map_err(|_| ProcessError::SignalParseFailure(stop_signal))?;
+        #[cfg(unix)]
+        {
+            self.stop_signal = Signal::from_str(&stop_signal)
+                .map_err(|_| ProcessError::SignalParseFailure(stop_signal))?;
+        }
 
         Ok(())
     }
 
+    #[cfg_attr(not(unix), allow(unused_variables))]
     pub fn set_stop_timeout(&mut self, stop_timeout: Duration) {
-        self.stop_timeout = stop_timeout;
+        #[cfg(unix)]
+        {
+            self.stop_timeout = stop_timeout;
+        }
     }
 }
 
@@ -111,7 +122,9 @@ impl ProcessParams {
 #[cfg_attr(unix, allow(dead_code))]
 pub struct Process {
     child: Arc<RwLock<Option<ReaderHandle>>>,
+    #[cfg(unix)]
     stop_signal: Signal,
+    #[cfg(unix)]
     stop_timeout: Duration,
 }
 
@@ -165,7 +178,9 @@ impl Process {
                         debug!("[{command_id}] {line}");
                     }
 
+                    #[cfg_attr(not(unix), allow(unused_variables))]
                     if let Ok(Some(output)) = stdout.try_wait() {
+                        #[cfg(unix)]
                         if output.status.signal().is_some() {
                             trace!("Process is signalled, no retries necessary.");
                             return;
@@ -224,7 +239,9 @@ impl Process {
 
         Ok(Process {
             child,
+            #[cfg(unix)]
             stop_signal: params.stop_signal,
+            #[cfg(unix)]
             stop_timeout: params.stop_timeout,
         })
     }
@@ -352,14 +369,28 @@ impl Action for ProcessAction {
 }
 
 #[cfg(test)]
+#[cfg_attr(not(unix), allow(unused_imports))]
 mod tests {
     use super::*;
     use std::{fs, time::Instant};
     use thread::sleep;
 
+    const SLEEP_PARSING: &str = "sleep 100";
+    const SLEEP_INVALID: &str = "sleep '100";
+
+    #[cfg(unix)]
+    const EXIT_NONZERO: &str = "/bin/sh -c 'exit 1'";
+    #[cfg(unix)]
+    const SLEEP: &str = "sleep 100";
+
+    #[cfg(not(unix))]
+    const EXIT_NONZERO: &str = "cmd /c 'exit 1'";
+    #[cfg(not(unix))]
+    const SLEEP: &str = "timeout /t 100";
+
     #[test]
     fn it_should_start_a_new_process() -> Result<(), ProcessError> {
-        let params = ProcessParams::new(String::from("sleep 100"), String::from("."))?;
+        let params = ProcessParams::new(String::from(SLEEP_PARSING), String::from("."))?;
         let mut action = ProcessAction::new(params)?;
         action.process.stop()?;
 
@@ -372,7 +403,7 @@ mod tests {
 
     #[test]
     fn it_should_fail_if_command_is_invalid() -> Result<(), ProcessError> {
-        let failing_command = String::from("sleep '100");
+        let failing_command = String::from(SLEEP_INVALID);
         let failing_params = ProcessParams::new(failing_command.clone(), String::from("."));
 
         assert_eq!(
@@ -384,9 +415,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn it_should_fail_if_signal_is_invalid() -> Result<(), ProcessError> {
         let failing_signal = String::from("SIGWTF");
-        let failing_params = ProcessParams::new(String::from("sleep 100"), String::from("."))?
+        let failing_params = ProcessParams::new(String::from(SLEEP), String::from("."))?
             .set_stop_signal(failing_signal.clone());
 
         assert_eq!(
@@ -400,7 +432,7 @@ mod tests {
     #[test]
     fn it_should_restart_the_process_gracefully() -> Result<(), ProcessError> {
         let stop_timeout = Duration::from_secs(5);
-        let params = ProcessParams::new(String::from("sleep 100"), String::from("."))?;
+        let params = ProcessParams::new(String::from(SLEEP), String::from("."))?;
         let mut action = ProcessAction::new(params)?;
 
         let initial_time = Instant::now();
@@ -437,7 +469,7 @@ mod tests {
 
     #[test]
     fn it_should_retry_the_process_if_it_exits_until_the_retry_count() -> Result<(), ProcessError> {
-        let params = ProcessParams::new(String::from("false"), String::from("."))?;
+        let params = ProcessParams::new(String::from(EXIT_NONZERO), String::from("."))?;
         let action = ProcessAction::new(params)?;
 
         sleep(Duration::from_secs(1));
@@ -450,6 +482,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn it_should_reset_the_retries() -> Result<(), ProcessError> {
         let tailed_file = "./test_directories/tailed_file";
         let params = ProcessParams::new(format!("tail -f {tailed_file}"), String::from("."))?;
