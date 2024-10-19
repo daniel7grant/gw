@@ -6,9 +6,9 @@ on:
 jobs:
   test:
     strategy:
-        fail-fast: false
-        matrix:
-          os: [ubuntu-latest, macos-latest, windows-latest]
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     name: Check and test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -31,5 +31,3 @@ jobs:
           git config --global init.defaultBranch master
       - name: Run tests
         run: cargo nextest run --no-fail-fast
-        env:
-          RUST_BACKTRACE: "1"
