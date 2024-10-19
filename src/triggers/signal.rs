@@ -1,18 +1,23 @@
 use super::{Trigger, TriggerError};
 use crate::context::Context;
+use std::sync::mpsc::Sender;
 use log::debug;
-use std::sync::{atomic::AtomicU8, mpsc::Sender};
+
+#[cfg(unix)]
+use std::sync::atomic::AtomicU8;
 
 const _TRIGGER_NAME: &str = "SIGNAL";
 
 /// A trigger that terminates the program on a signal.
 pub struct SignalTrigger {
+    #[cfg(unix)]
     trigger_count: AtomicU8,
 }
 
 impl SignalTrigger {
     pub fn new() -> SignalTrigger {
         SignalTrigger {
+            #[cfg(unix)]
             trigger_count: AtomicU8::new(0),
         }
     }
