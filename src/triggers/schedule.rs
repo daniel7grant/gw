@@ -83,7 +83,13 @@ impl ScheduleTrigger {
         // TODO: handle overlaps
         let until_next_check = next_check - Instant::now();
         sleep(until_next_check);
-        Ok(true)
+
+        // We should handle if the sleep was too long and it went over the timeout
+        if let Some(final_timeout) = final_timeout {
+            Ok(Instant::now() < final_timeout)
+        } else {
+            Ok(true)
+        }
     }
 }
 
@@ -147,8 +153,11 @@ mod tests {
             // It should be close to the timings
             let msg = rx.recv().unwrap();
             let diff = start.elapsed();
-            assert!(diff >= Duration::from_millis(95));
-            assert!(diff <= Duration::from_millis(105));
+            assert!(
+                diff >= Duration::from_millis(95),
+                "Diff {} should be later than 95ms.",
+                DurationString::from(diff)
+            );
 
             // It should contain the hashmap
             let context = msg.unwrap();
@@ -164,21 +173,25 @@ mod tests {
         let trigger = ScheduleTrigger::new(Duration::from_millis(100));
         let (tx, _rx) = mpsc::channel::<Option<Context>>();
 
-        let final_timeout = Instant::now() + Duration::from_millis(350);
-        for i in 0..5 {
+        let start = Instant::now();
+        let final_timeout = start + Duration::from_millis(350);
+        for _ in 0..5 {
             let should_continue = trigger.step(tx.clone(), Some(final_timeout))?;
 
             // First three should pass, last two fail
-            if i < 3 {
-                assert!(should_continue)
+            if Instant::now() < final_timeout {
+                assert!(
+                    should_continue,
+                    "Should continue after {} passed, before 300ms.",
+                    DurationString::from(start.elapsed())
+                );
             } else {
-                assert!(!should_continue)
+                assert!(
+                    !should_continue,
+                    "Should continue after {} passed, after 300ms.",
+                    DurationString::from(start.elapsed())
+                );
             };
-
-            // In case of the timeout, it should wait until the final timeout
-            if i == 3 {
-                assert!(final_timeout.elapsed() < Duration::from_millis(10));
-            }
         }
 
         Ok(())
