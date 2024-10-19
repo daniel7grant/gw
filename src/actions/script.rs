@@ -213,7 +213,7 @@ mod tests {
         testing_logger::setup();
 
         let command = String::from(PRINTENV);
-        let action = ScriptAction::new(String::from("."), command, false)?;
+        let action = ScriptAction::new(String::from("."), command, true)?;
 
         let context: Context = HashMap::from([
             ("TRIGGER_NAME", "TEST-TRIGGER".to_string()),
@@ -239,7 +239,7 @@ mod tests {
         std::env::set_var("GW_TEST", "GW_TEST");
 
         let command = String::from(PRINTENV);
-        let action = ScriptAction::new(String::from("."), command, false)?;
+        let action = ScriptAction::new(String::from("."), command, true)?;
 
         let context: Context = HashMap::new();
         action.run_inner(&context)?;
