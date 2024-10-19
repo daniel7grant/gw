@@ -61,7 +61,7 @@ fn main_inner() -> Result<(), MainError> {
         .to_string();
 
     // Setup triggers.
-    let mut triggers: Vec<Box<dyn Trigger>> = vec![Box::new(SignalTrigger)];
+    let mut triggers: Vec<Box<dyn Trigger>> = vec![Box::new(SignalTrigger::new())];
     if args.once {
         debug!("Setting up OnceTrigger (this will disable all other triggers).");
         triggers.push(Box::new(OnceTrigger));
