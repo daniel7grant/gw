@@ -30,4 +30,4 @@ jobs:
           git config --global user.name "Test Thomas"
           git config --global init.defaultBranch master
       - name: Run tests
-        run: cargo nextest run --no-fail-fast
+        run: RUST_BACKTRACE=1 cargo nextest run --no-fail-fast
