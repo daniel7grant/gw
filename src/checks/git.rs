@@ -225,12 +225,12 @@ mod tests {
         let remote = format!("{local}-remote");
         let other = format!("{local}-other");
 
-        fs::remove_dir_all(local)?;
+        fs::remove_dir_all(local).unwrap(); // ?;
         if Path::new(&remote).exists() {
-            fs::remove_dir_all(remote)?;
+            fs::remove_dir_all(remote).unwrap(); // ?;
         }
         if Path::new(&other).exists() {
-            fs::remove_dir_all(other)?;
+            fs::remove_dir_all(other).unwrap(); // ?;
         }
 
         Ok(())
