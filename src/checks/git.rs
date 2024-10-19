@@ -225,12 +225,12 @@ mod tests {
         let remote = format!("{local}-remote");
         let other = format!("{local}-other");
 
-        fs::remove_dir_all(local).unwrap(); // ?;
+        fs::remove_dir_all(local)?;
         if Path::new(&remote).exists() {
-            fs::remove_dir_all(remote).unwrap(); // ?;
+            fs::remove_dir_all(remote)?;
         }
         if Path::new(&other).exists() {
-            fs::remove_dir_all(other).unwrap(); // ?;
+            fs::remove_dir_all(other)?;
         }
 
         Ok(())
@@ -272,7 +272,7 @@ mod tests {
 
         let _ = GitCheck::open_inner(&local)?;
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -305,7 +305,7 @@ mod tests {
             "{error:?} should be Misconfigured"
         );
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -326,7 +326,7 @@ mod tests {
             "{error:?} should be Misconfigured"
         );
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -363,7 +363,7 @@ mod tests {
                 .unwrap()
         );
 
-        cleanup_repository(&local)?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -373,24 +373,24 @@ mod tests {
         let id = get_random_id();
         let local = format!("test_directories/{id}");
 
-        create_empty_repository(&local).unwrap(); // ?;
+        create_empty_repository(&local)?;
 
         // Create another repository and push a new commit
-        create_other_repository(&local).unwrap(); // ?;
+        create_other_repository(&local)?;
 
-        let before_commit_sha = get_last_commit(&local).unwrap(); // ?;
-        let mut check = GitCheck::open_inner(&local).unwrap(); // ?;
+        let before_commit_sha = get_last_commit(&local)?;
+        let mut check = GitCheck::open_inner(&local)?;
         let mut context: Context = HashMap::new();
-        let is_pulled = check.check_inner(&mut context).unwrap(); // ?;
+        let is_pulled = check.check_inner(&mut context)?;
         assert!(is_pulled);
 
         // The pushed file should be pulled
         assert!(Path::new(&format!("{local}/2")).exists());
 
         // It should set the context keys
-        let remote_path = fs::canonicalize(format!("{local}-remote")).unwrap(); // ?;
+        let remote_path = fs::canonicalize(format!("{local}-remote"))?;
         let remote = remote_path.to_str().unwrap();
-        let commit_sha = get_last_commit(&local).unwrap(); // ?;
+        let commit_sha = get_last_commit(&local)?;
         assert_eq!("branch", context.get("GIT_REF_TYPE").unwrap());
         assert_eq!("refs/heads/master", context.get("GIT_REF_NAME").unwrap());
         assert_eq!("master", context.get("GIT_BRANCH_NAME").unwrap());
@@ -415,7 +415,7 @@ mod tests {
                 .unwrap()
         );
 
-        cleanup_repository(&local).unwrap(); // ?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -425,25 +425,25 @@ mod tests {
         let id = get_random_id();
         let local = format!("test_directories/{id}");
 
-        create_empty_repository(&local).unwrap(); // ?;
+        create_empty_repository(&local)?;
 
         // Create another repository, push a new commit and add a tag
-        create_other_repository(&local).unwrap(); // ?;
-        create_tag(&format!("{local}-other"), "v0.1.0").unwrap(); // ?;
+        create_other_repository(&local)?;
+        create_tag(&format!("{local}-other"), "v0.1.0")?;
 
-        let mut check = GitCheck::open_inner(&local).unwrap(); // ?;
+        let mut check = GitCheck::open_inner(&local)?;
         let mut context: Context = HashMap::new();
-        let is_pulled = check.check_inner(&mut context).unwrap(); // ?;
+        let is_pulled = check.check_inner(&mut context)?;
         assert!(is_pulled);
 
         // The pushed file should be pulled
         assert!(Path::new(&format!("{local}/2")).exists());
 
         // Tag should be downloaded
-        let tags = get_tags(&local).unwrap(); // ?;
+        let tags = get_tags(&local)?;
         assert_eq!(tags, "v0.1.0");
 
-        cleanup_repository(&local).unwrap(); // ?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -453,15 +453,15 @@ mod tests {
         let id = get_random_id();
         let local = format!("test_directories/{id}");
 
-        create_empty_repository(&local).unwrap(); // ?;
+        create_empty_repository(&local)?;
 
         // Create another repository and push a new commit
-        create_other_repository(&local).unwrap(); // ?;
+        create_other_repository(&local)?;
 
         // Add uncommited modification to emulate a dirty working tree
-        fs::write(format!("{local}/1"), "22").unwrap(); // ?;
+        fs::write(format!("{local}/1"), "22")?;
 
-        let mut check = GitCheck::open_inner(&local).unwrap(); // ?;
+        let mut check = GitCheck::open_inner(&local)?;
         let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
 
@@ -473,7 +473,7 @@ mod tests {
         // The pushed file should be pulled
         assert!(!Path::new(&format!("{local}/2")).exists());
 
-        cleanup_repository(&local).unwrap(); // ?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -483,15 +483,15 @@ mod tests {
         let id = get_random_id();
         let local = format!("test_directories/{id}");
 
-        create_empty_repository(&local).unwrap(); // ?;
+        create_empty_repository(&local)?;
 
         // Create another repository and push a new commit
-        create_other_repository(&local).unwrap(); // ?;
+        create_other_repository(&local)?;
 
         // Modify the same file in both directories to create a merge conflict
-        create_merge_conflict(&local).unwrap(); // ?;
+        create_merge_conflict(&local)?;
 
-        let mut check = GitCheck::open_inner(&local).unwrap(); // ?;
+        let mut check = GitCheck::open_inner(&local)?;
         let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
 
@@ -500,7 +500,7 @@ mod tests {
             "{error:?} should be MergeConflict"
         );
 
-        cleanup_repository(&local).unwrap(); // ?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
@@ -510,17 +510,17 @@ mod tests {
         let id = get_random_id();
         let local = format!("test_directories/{id}");
 
-        create_empty_repository(&local).unwrap(); // ?;
+        create_empty_repository(&local)?;
 
         // Create another repository and push a new commit
-        create_other_repository(&local).unwrap(); // ?;
+        create_other_repository(&local)?;
 
         // Set repository to readonly
         let mut perms = fs::metadata(&local)?.permissions();
         perms.set_readonly(true);
-        fs::set_permissions(&local, perms).unwrap(); // ?;
+        fs::set_permissions(&local, perms)?;
 
-        let mut check: GitCheck = GitCheck::open_inner(&local).unwrap(); // ?;
+        let mut check: GitCheck = GitCheck::open_inner(&local)?;
         let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
 
@@ -533,9 +533,9 @@ mod tests {
         let mut perms = fs::metadata(&local)?.permissions();
         #[allow(clippy::permissions_set_readonly_false)]
         perms.set_readonly(false);
-        fs::set_permissions(&local, perms).unwrap(); // ?;
+        fs::set_permissions(&local, perms)?;
 
-        cleanup_repository(&local).unwrap(); // ?;
+        let _ = cleanup_repository(&local);
 
         Ok(())
     }
