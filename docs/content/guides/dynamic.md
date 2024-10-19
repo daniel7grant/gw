@@ -19,7 +19,13 @@ For example for Node.js programs, use the usual `npm run start` script with a pr
 gw /path/to/repo -p 'npm run start'
 ```
 
-If you want to use a build step, for example for TypeScript look at the [TypeScript guide](/guides/compiled#typescript).
+You can also run the unit tests first, if you want to make sure to restart if the code is in a correct state:
+
+```sh
+gw /path/to/repo -s 'npm run test' -p 'npm run start'
+```
+
+If you want to use a build step, for example for TypeScript or Next.js, look at the [TypeScript guide](/guides/compiled#typescript).
 
 ### Python
 

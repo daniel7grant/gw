@@ -32,10 +32,10 @@ For more installation methods, see [Installation](/usage/installation).
 
 ## Get started
 
-To use `gw`, you have to point it to your local repository and it will pull changes automatically. You can run scripts on every pull to build or restart your deployments with the `--script` flag.
+To use `gw`, you have to point it to your local repository and it will pull changes automatically. You can run scripts on every pull to build with the `--script` (or `-s`) flag or run your deployments with the `--process` (or `-p`) flag.
 
 ```sh
-gw /path/to/repo --script 'run build process' --script 'restart deployment'
+gw /path/to/repo --script 'run build process' --process 'run deployment'
 ```
 
 For your first steps with `gw`, see [Get started](/usage/start).
