@@ -147,8 +147,16 @@ mod tests {
             // It should be close to the timings
             let msg = rx.recv().unwrap();
             let diff = start.elapsed();
-            assert!(diff >= Duration::from_millis(95));
-            assert!(diff <= Duration::from_millis(105));
+            assert!(
+                diff >= Duration::from_millis(95),
+                "Diff {} should be between 95ms and 105ms.",
+                DurationString::from(diff)
+            );
+            assert!(
+                diff <= Duration::from_millis(105),
+                "Diff {} should be between 95ms and 105ms.",
+                DurationString::from(diff)
+            );
 
             // It should contain the hashmap
             let context = msg.unwrap();
@@ -164,15 +172,26 @@ mod tests {
         let trigger = ScheduleTrigger::new(Duration::from_millis(100));
         let (tx, _rx) = mpsc::channel::<Option<Context>>();
 
-        let final_timeout = Instant::now() + Duration::from_millis(350);
+        let start = Instant::now();
+        let final_timeout = start + Duration::from_millis(350);
         for i in 0..5 {
             let should_continue = trigger.step(tx.clone(), Some(final_timeout))?;
 
             // First three should pass, last two fail
             if i < 3 {
-                assert!(should_continue)
+                assert!(
+                    should_continue,
+                    "Should continue after {} ({} passed) before 300ms.",
+                    i,
+                    DurationString::from(start.elapsed())
+                );
             } else {
-                assert!(!should_continue)
+                assert!(
+                    !should_continue,
+                    "Should continue after {} ({} passed) after 300ms.",
+                    i,
+                    DurationString::from(start.elapsed())
+                );
             };
 
             // In case of the timeout, it should wait until the final timeout
