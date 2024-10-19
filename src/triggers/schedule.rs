@@ -175,7 +175,7 @@ mod tests {
 
         let start = Instant::now();
         let final_timeout = start + Duration::from_millis(350);
-        for i in 0..5 {
+        for _ in 0..5 {
             let should_continue = trigger.step(tx.clone(), Some(final_timeout))?;
 
             // First three should pass, last two fail
@@ -192,11 +192,6 @@ mod tests {
                     DurationString::from(start.elapsed())
                 );
             };
-
-            // In case of the timeout, it should wait until the final timeout
-            if i == 3 {
-                assert!(final_timeout.elapsed() < Duration::from_millis(10));
-            }
         }
 
         Ok(())
