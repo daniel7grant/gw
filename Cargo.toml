@@ -1,11 +1,16 @@
 [package]
 name = "gw-bin"
 description = "Watch git repositories, pull changes and run commands on the new files"
-version = "0.3.2"
+version = "0.4.0"
 license = "MIT"
 edition = "2021"
 documentation = "https://github.com/daniel7grant/gw"
 repository = "https://github.com/daniel7grant/gw"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }_{ target }{ archive-suffix }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "zip"
 
 [dependencies]
 dirs = "5.0.1"
@@ -40,8 +45,3 @@ strip = true
 [[bin]]
 name = "gw"
 path = "src/main.rs"
-
-[package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/v{ version }/{ name }_{ target }{ archive-suffix }"
-bin-dir = "{ bin }{ binary-ext }"
-pkg-fmt = "zip"

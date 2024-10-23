@@ -33,7 +33,7 @@ First, make sure, that `gw` is installed successfully and is in your PATH:
 
 ```sh
 $ gw --version
-0.3.2
+0.4.0
 ```
 
 The other necessary part is a git repository to which you have pull access. It is recommended to use a repository that you know, but if you don't have one at hand, you can use the [daniel7grant/time](https://github.com/daniel7grant/time) repository. This is an example repository that is updated in every minute, so it is useful to test the auto update of `gw`. First clone this repository (if you are using your own, clone again), and enter the cloned directory:

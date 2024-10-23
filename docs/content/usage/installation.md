@@ -22,7 +22,7 @@ This will download the script to `~/.local/bin` or if run by root to `/usr/local
 Another way is to download the zipped binary from [Github Releases](https://github.com/daniel7grant/gw/releases) and install it to your path:
 
 ```sh
-curl -LO https://github.com/daniel7grant/gw/releases/download/v0.3.2/gw-bin_x86_64-unknown-linux-gnu.zip
+curl -LO https://github.com/daniel7grant/gw/releases/download/v0.4.0/gw-bin_x86_64-unknown-linux-gnu.zip
 unzip gw-bin_x86_64-unknown-linux-gnu.zip
 mv gw ~/.local/bin/gw
 rm gw-bin_x86_64-unknown-linux-gnu.zip

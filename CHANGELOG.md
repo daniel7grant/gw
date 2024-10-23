@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2024-10-23
+
 ### Added
 
 - **New feature**: Subprocess handling
@@ -10,6 +12,7 @@
   - Set the stop signal and stop timeout args to configure graceful shutdown before restart
   - Add `-P` to start the process in the shell instead
 - The order of script and process flags now matter, scripts are run in order before and after the process
+- Add testing for Windows and MacOS machines
 
 ### Changed
 
