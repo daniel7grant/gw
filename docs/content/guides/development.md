@@ -7,7 +7,7 @@ weight = 6
 
 You can use `gw` to help in local development. You can pull your repository continuously, so in case somebody commits (and there is no conflicts) you can get the newest version. You can also set a notification to see immediately if somebody modified anything.
 
-> I don't recommend working on the same branch with multiple people, but sometimes it happens.
+> **Note**: I don't recommend working on the same branch with multiple people, but sometimes it happens.
 
 ## Configuration
 

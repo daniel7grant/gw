@@ -11,7 +11,7 @@ weight = 4
 
 Make sure to have a `docker-compose.yaml` file in the root directory. It can start existing containers or build images from the local files. 
 
-> Note: if you build docker images locally, you save the storage and transfer costs of the docker image repository.
+> **Note**: if you build docker images locally, you save the storage and transfer costs of the docker image repository.
 
 Since it is also a file in your git repository, it basically doubles as an infrastructure-as-a-code. You can modify the `docker compose` setup (e.g. add another dependency, for example cache), commit and have the changes reflected in your infrastructure immediately.
 

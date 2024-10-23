@@ -1,6 +1,6 @@
-use super::{Action, ActionError};
+use super::{utils::command::create_command, Action, ActionError};
 use crate::context::Context;
-use duct::ReaderHandle;
+use duct::{Expression, ReaderHandle};
 use log::{debug, error, info, trace, warn};
 use std::{
     io::{BufRead, BufReader},
@@ -57,39 +57,34 @@ impl From<ProcessError> for ActionError {
 pub struct ProcessParams {
     directory: String,
     command: String,
-    args: Vec<String>,
+    process: Expression,
     retries: u32,
     #[cfg(unix)]
     stop_signal: Signal,
     #[cfg(unix)]
     stop_timeout: Duration,
+    runs_in_shell: bool,
 }
 
 impl ProcessParams {
-    pub fn new(original_command: String, directory: String) -> Result<ProcessParams, ProcessError> {
-        let split_args = shlex::split(&original_command)
+    pub fn new(
+        original_command: String,
+        directory: String,
+        runs_in_shell: bool,
+    ) -> Result<ProcessParams, ProcessError> {
+        let (command, process) = create_command(&original_command, runs_in_shell)
             .ok_or(ProcessError::CommandParseFailure(original_command.clone()))?;
-
-        let (command, args) = split_args
-            .split_first()
-            .ok_or(ProcessError::CommandParseFailure(original_command.clone()))?;
-
-        trace!(
-            "Parsing {:?} to command {:?} and args {:?}.",
-            &original_command,
-            &command,
-            &args
-        );
 
         Ok(ProcessParams {
             directory,
-            command: command.clone(),
-            args: args.to_vec(),
+            command,
+            process,
             retries: 0,
             #[cfg(unix)]
             stop_signal: Signal::SIGTERM,
             #[cfg(unix)]
             stop_timeout: Duration::from_secs(10),
+            runs_in_shell,
         })
     }
 
@@ -130,19 +125,20 @@ pub struct Process {
 
 impl Process {
     fn start_child(params: &ProcessParams) -> Result<ReaderHandle, ProcessError> {
-        trace!(
-            "Running process {:?} with args: {:?}.",
-            params.command,
-            params.args
-        );
-
         info!(
-            "Starting process {:?} in {}.",
-            params.command, params.directory,
+            "Starting process {:?} {}in {}.",
+            params.command,
+            if params.runs_in_shell {
+                "in a shell "
+            } else {
+                ""
+            },
+            params.directory,
         );
 
         // Create child
-        let child = duct::cmd(&params.command, &params.args)
+        let child = params
+            .process
             .dir(&params.directory)
             .stderr_to_stdout()
             .env("CI", "true")
@@ -279,7 +275,6 @@ impl Process {
 
             let start_time = Instant::now();
             while start_time.elapsed() < self.stop_timeout {
-                trace!("Testing process state.");
                 if let Ok(Some(output)) = child.try_wait() {
                     info!("Process stopped gracefully with status {}.", output.status);
                     return Ok(());
@@ -342,7 +337,6 @@ impl ProcessAction {
     }
 
     fn run_inner(&mut self) -> Result<(), ProcessError> {
-        debug!("Restarting process.");
         self.process
             .stop()
             .map_err(|err| ProcessError::StopFailure(err.to_string()))?;
@@ -355,16 +349,7 @@ impl ProcessAction {
 impl Action for ProcessAction {
     /// Kills and restarts the subprocess.
     fn run(&mut self, _context: &Context) -> Result<(), ActionError> {
-        match self.run_inner() {
-            Ok(()) => {
-                debug!("Process restarted.");
-                Ok(())
-            }
-            Err(err) => {
-                error!("Failed: {err}.");
-                Err(err.into())
-            }
-        }
+        Ok(self.run_inner()?)
     }
 }
 
@@ -377,25 +362,21 @@ mod tests {
 
     const SLEEP_PARSING: &str = "sleep 100";
     const SLEEP_INVALID: &str = "sleep '100";
+    const EXIT_NONZERO: &str = "exit 1";
 
-    #[cfg(unix)]
-    const EXIT_NONZERO: &str = "/bin/sh -c 'exit 1'";
     #[cfg(unix)]
     const SLEEP: &str = "sleep 100";
 
-    #[cfg(not(unix))]
-    const EXIT_NONZERO: &str = "cmd /c 'exit 1'";
     #[cfg(not(unix))]
     const SLEEP: &str = "timeout /t 100";
 
     #[test]
     fn it_should_start_a_new_process() -> Result<(), ProcessError> {
-        let params = ProcessParams::new(String::from(SLEEP_PARSING), String::from("."))?;
+        let params = ProcessParams::new(String::from(SLEEP_PARSING), String::from("."), false)?;
         let mut action = ProcessAction::new(params)?;
         action.process.stop()?;
 
         assert_eq!("sleep", action.params.command);
-        assert_eq!(vec!["100"], action.params.args);
         assert_eq!(".", action.params.directory);
 
         Ok(())
@@ -404,7 +385,7 @@ mod tests {
     #[test]
     fn it_should_fail_if_command_is_invalid() -> Result<(), ProcessError> {
         let failing_command = String::from(SLEEP_INVALID);
-        let failing_params = ProcessParams::new(failing_command.clone(), String::from("."));
+        let failing_params = ProcessParams::new(failing_command.clone(), String::from("."), false);
 
         assert_eq!(
             ProcessError::CommandParseFailure(failing_command),
@@ -418,7 +399,7 @@ mod tests {
     #[cfg(unix)]
     fn it_should_fail_if_signal_is_invalid() -> Result<(), ProcessError> {
         let failing_signal = String::from("SIGWTF");
-        let failing_params = ProcessParams::new(String::from(SLEEP), String::from("."))?
+        let failing_params = ProcessParams::new(String::from(SLEEP), String::from("."), false)?
             .set_stop_signal(failing_signal.clone());
 
         assert_eq!(
@@ -432,7 +413,7 @@ mod tests {
     #[test]
     fn it_should_restart_the_process_gracefully() -> Result<(), ProcessError> {
         let stop_timeout = Duration::from_secs(5);
-        let params = ProcessParams::new(String::from(SLEEP), String::from("."))?;
+        let params = ProcessParams::new(String::from(SLEEP), String::from("."), false)?;
         let mut action = ProcessAction::new(params)?;
 
         let initial_time = Instant::now();
@@ -469,7 +450,7 @@ mod tests {
 
     #[test]
     fn it_should_retry_the_process_if_it_exits_until_the_retry_count() -> Result<(), ProcessError> {
-        let params = ProcessParams::new(String::from(EXIT_NONZERO), String::from("."))?;
+        let params = ProcessParams::new(String::from(EXIT_NONZERO), String::from("."), true)?;
         let action = ProcessAction::new(params)?;
 
         sleep(Duration::from_secs(1));
@@ -485,7 +466,8 @@ mod tests {
     #[cfg(unix)]
     fn it_should_reset_the_retries() -> Result<(), ProcessError> {
         let tailed_file = "./test_directories/tailed_file";
-        let params = ProcessParams::new(format!("tail -f {tailed_file}"), String::from("."))?;
+        let params =
+            ProcessParams::new(format!("tail -f {tailed_file}"), String::from("."), false)?;
 
         // First time it should fail, because the file doesn't exist yet
         let mut action = ProcessAction::new(params)?;

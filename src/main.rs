@@ -1,4 +1,4 @@
-use args::parse_args;
+use args::{parse_args, ArgAction};
 use gw_bin::{
     actions::{
         process::{ProcessAction, ProcessParams},
@@ -29,6 +29,8 @@ pub enum MainError {
     MissingDirectoryArg,
     #[error("Directory {0} not found.")]
     NonExistentDirectory(String),
+    #[error("You cannot start multiple processes, only add -p or -P once.")]
+    MultipleProcessArgs,
     #[error("Check failed: {0}.")]
     FailedCheck(#[from] CheckError),
     #[error("Failed setting up logger with timezones.")]
@@ -42,7 +44,7 @@ pub enum MainError {
 }
 
 fn main_inner() -> Result<(), MainError> {
-    let args = parse_args();
+    let (args, arg_actions) = parse_args();
 
     if args.version {
         println!("{}", env!("CARGO_PKG_VERSION"));
@@ -89,31 +91,47 @@ fn main_inner() -> Result<(), MainError> {
     let mut check: Box<dyn Check> = Box::new(git_check);
 
     // Setup actions.
-    let mut actions: Vec<Box<dyn Action>> = vec![];
-    for script in args.scripts {
-        debug!("Setting up ScriptAction {script:?} on change.");
-        actions.push(Box::new(ScriptAction::new(directory.clone(), script)));
+    if arg_actions
+        .iter()
+        .filter(|a| matches!(a, ArgAction::Process(_, _)))
+        .count()
+        > 1
+    {
+        return Err(MainError::MultipleProcessArgs);
     }
-    if let Some(process) = args.process {
-        debug!("Setting up ProcessAction {process:?} on change.");
-        let mut process_params =
-            ProcessParams::new(process, directory.clone()).map_err(ActionError::from)?;
+    let mut actions: Vec<Box<dyn Action>> = vec![];
+    for arg_action in arg_actions {
+        match arg_action {
+            ArgAction::Script(script, runs_in_shell) => {
+                debug!("Setting up ScriptAction {script:?} on change.");
+                actions.push(Box::new(
+                    ScriptAction::new(directory.clone(), script, runs_in_shell)
+                        .map_err(ActionError::from)?,
+                ));
+            }
+            ArgAction::Process(process, runs_in_shell) => {
+                debug!("Setting up ProcessAction {process:?} on change.");
+                let mut process_params =
+                    ProcessParams::new(process, directory.clone(), runs_in_shell)
+                        .map_err(ActionError::from)?;
 
-        if let Some(retries) = args.process_retries {
-            process_params.set_retries(retries);
-        }
-        if let Some(stop_signal) = args.stop_signal {
-            process_params
-                .set_stop_signal(stop_signal)
-                .map_err(ActionError::from)?;
-        }
-        if let Some(stop_timeout) = args.stop_timeout {
-            process_params.set_stop_timeout(stop_timeout.into());
-        }
+                if let Some(retries) = args.process_retries {
+                    process_params.set_retries(retries);
+                }
+                if let Some(ref stop_signal) = args.stop_signal {
+                    process_params
+                        .set_stop_signal(stop_signal.clone())
+                        .map_err(ActionError::from)?;
+                }
+                if let Some(stop_timeout) = args.stop_timeout {
+                    process_params.set_stop_timeout(stop_timeout.into());
+                }
 
-        actions.push(Box::new(
-            ProcessAction::new(process_params).map_err(ActionError::from)?,
-        ));
+                actions.push(Box::new(
+                    ProcessAction::new(process_params).map_err(ActionError::from)?,
+                ));
+            }
+        }
     }
 
     if actions.is_empty() {

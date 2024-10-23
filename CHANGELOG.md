@@ -8,9 +8,12 @@
   - Use `-p` to start a process directly and restart on change
   - Configure the retries to restart the process in case of a failure
   - Set the stop signal and stop timeout args to configure graceful shutdown before restart
+  - Add `-P` to start the process in the shell instead
+- The order of script and process flags now matter, scripts are run in order before and after the process
 
 ### Changed
 
+- **Breaking change**: Scripts are now running directly, you can run it in a shell using `-S`
 - Only change gitconfig (safe.directory) if there isn't one
 - Don't overwrite script environment, use already set variables
 - If the user presses Ctrl+C a second time, the program exits immediately
