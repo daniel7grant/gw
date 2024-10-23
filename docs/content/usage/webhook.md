@@ -26,9 +26,9 @@ The `curl` output should print `OK` and the `gw` logs should include lines that 
 ```sh
 $ gw /path/to/repo -v --http 0.0.0.0:10101
 # ...
-2024-03-10T16:52:51.531Z DEBUG [gw_bin::triggers::http] Received request on GET /
-2024-03-10T16:52:52.055Z DEBUG [gw_bin::checks::git::repository] Checked out 5e25714 on branch main.
-2024-03-10T16:52:52.055Z INFO  [gw_bin::start] There are updates, pulling.
+2024-03-10T16:52:51.531Z [DEBUG] Received request on GET /
+2024-03-10T16:52:52.055Z [DEBUG] Checked out 5e25714 on branch main.
+2024-03-10T16:52:52.055Z [INFO ] There are updates, pulling.
 ```
 
 If you want to disable the scheduled checks altogether and rely on the webhooks, you can set the schedule duration (`-d` flag) to zero seconds:
@@ -60,8 +60,8 @@ A `POST /` request will also appear in the `gw` logs, assuming debug logging was
 ```sh
 $ gw /path/to/repo -v --http 0.0.0.0:10101
 # ...
-2024-03-10T17:18:24.424Z DEBUG [gw_bin::triggers::http] Received request on POST /
-2024-03-10T17:18:24.567Z DEBUG [gw_bin::start] There are no updates.
+2024-03-10T17:18:24.424Z [DEBUG] Received request on POST /
+2024-03-10T17:18:24.567Z [DEBUG] There are no updates.
 ```
 
 ### GitLab
@@ -75,6 +75,6 @@ To test this webhook, you can click **Test > Push events** next to the name. Git
 ```sh
 $ gw /path/to/repo -v --http 0.0.0.0:10101
 # ...
-2024-03-10T17:58:28.919Z DEBUG [gw_bin::triggers::http] Received request on POST /
-2024-03-10T17:58:29.052Z DEBUG [gw_bin::start] There are no updates.
+2024-03-10T17:58:28.919Z [DEBUG] Received request on POST /
+2024-03-10T17:58:29.052Z [DEBUG] There are no updates.
 ```

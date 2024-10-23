@@ -27,10 +27,10 @@ The output of the script is not printed by default, you can increase verbosity (
 
 ```sh
 $ gw /path/to/repo -v -s 'echo "updated"'
-2024-10-18T16:28:53.907Z INFO  [gw_bin::start] There are updates, running actions.
-2024-10-18T16:28:53.907Z INFO  [gw_bin::actions::script] Running script "echo" in /path/to/repo.
-2024-10-18T16:28:53.913Z DEBUG [gw_bin::actions::script] [echo] updated
-2024-10-18T16:28:53.913Z INFO  [gw_bin::actions::script] Script "echo" finished successfully.
+2024-10-18T16:28:53.907Z [INFO ] There are updates, running actions.
+2024-10-18T16:28:53.907Z [INFO ] Running script "echo" in /path/to/repo.
+2024-10-18T16:28:53.913Z [DEBUG] [echo] updated
+2024-10-18T16:28:53.913Z [INFO ] Script "echo" finished successfully.
 ```
 
 By default, scripts are executed directly to avoid common issues with shells (e.g. shell injection and unexpected globbing). If you instead want to run in a shell to expand variables or use shell specific functionality (e.g. pipes or multiple commands), use the `-S` flag. These scripts will run in a shell: `/bin/sh` on Linux and `cmd.exe` on Windows.
@@ -63,10 +63,10 @@ Processes are started when `gw` is started and they are kept in the background. 
 
 ```sh
 $ gw /path/to/repo -v -s 'ping 1.1.1.1'
-2024-03-10T15:04:37.740Z INFO  [gw_bin::start] There are updates, running actions.
-2024-10-16T18:04:25.888Z INFO  [gw_bin::actions::process] Starting process "ping" in /path/to/repo.
-2024-10-16T18:04:25.906Z DEBUG [gw_bin::actions::process] [ping] PING 1.1.1.1 (1.1.1.1) 56(84) bytes of data.
-2024-10-16T18:04:25.906Z DEBUG [gw_bin::actions::process] [ping] 64 bytes from 1.1.1.1: icmp_seq=1 ttl=57 time=16.8 ms
+2024-03-10T15:04:37.740Z [INFO ] There are updates, running actions.
+2024-10-16T18:04:25.888Z [INFO ] Starting process "ping" in /path/to/repo.
+2024-10-16T18:04:25.906Z [DEBUG] [ping] PING 1.1.1.1 (1.1.1.1) 56(84) bytes of data.
+2024-10-16T18:04:25.906Z [DEBUG] [ping] 64 bytes from 1.1.1.1: icmp_seq=1 ttl=57 time=16.8 ms
 ```
 
 Similarly to scripts, processes are executed directly. If you want to use the native shell for variable expansion or shell-specific functionality, you can use `-P`.

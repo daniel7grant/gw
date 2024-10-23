@@ -56,8 +56,8 @@ If you are using your own repository, create a commit in a different place, and 
 ```sh
 $ gw /path/to/repo -v
 # ...
-2024-03-10T14:48:13.447Z DEBUG [gw_bin::checks::git::repository] Checked out fc23d21 on branch main.
-2024-03-10T14:48:13.447Z INFO  [gw_bin::start] There are updates, pulling.
+2024-03-10T14:48:13.447Z [DEBUG] Checked out fc23d21 on branch main.
+2024-03-10T14:48:13.447Z [INFO ] There are updates, pulling.
 ```
 
 Also check the files or the `git log` to see that it the repository has been updated:
@@ -80,10 +80,10 @@ This will run every time there is a new commit, and after the pull it will print
 ```sh
 $ gw /path/to/repo -v --script 'cat DATETIME'
 # ...
-2024-10-18T16:28:53.907Z INFO  [gw_bin::start] There are updates, running actions.
-2024-10-18T16:28:53.907Z INFO  [gw_bin::actions::script] Running script "cat" in /path/to/repo.
-2024-10-18T16:28:53.913Z DEBUG [gw_bin::actions::script] [cat] 2024-10-18T16:28:00+0000
-2024-10-18T16:28:53.913Z INFO  [gw_bin::actions::script] Script "cat" finished successfully.
+2024-10-18T16:28:53.907Z [INFO ] There are updates, running actions.
+2024-10-18T16:28:53.907Z [INFO ] Running script "cat" in /path/to/repo.
+2024-10-18T16:28:53.913Z [DEBUG] [cat] 2024-10-18T16:28:00+0000
+2024-10-18T16:28:53.913Z [INFO ] Script "cat" finished successfully.
 ```
 
 You can add multiple scripts, which will run one after another. Use these scripts to build source files, restarts deployments and anything else that you can imagine.
@@ -97,9 +97,9 @@ For example starting a python web server:
 ```sh
 $ gw /path/to/repo -v -p "python -m http.server"
 # ...
-2024-10-06T21:58:21.306Z DEBUG [gw] Setting up ProcessAction "python -m http.server" on change.
-2024-10-06T21:58:21.306Z DEBUG [gw_bin::actions::process] Starting process: "python" in directory /path/to/repo.
-2024-10-06T21:58:56.211Z DEBUG [gw_bin::actions::process] [python] Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+2024-10-06T21:58:21.306Z [DEBUG] Setting up ProcessAction "python -m http.server" on change.
+2024-10-06T21:58:21.306Z [DEBUG] Starting process: "python" in directory /path/to/repo.
+2024-10-06T21:58:56.211Z [DEBUG] [python] Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
 ```
 
 This will run a python process in the background and stop and start it again if a git pull happened. Just wrap your deployment script with `gw` and see it gets updated every time you push to git.
