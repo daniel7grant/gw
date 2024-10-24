@@ -31,11 +31,15 @@ $ gw /path/to/repo -v --http 0.0.0.0:10101
 2024-03-10T16:52:52.055Z [INFO ] There are updates, pulling.
 ```
 
+### Using only webhooks
+
 If you want to disable the scheduled checks altogether and rely on the webhooks, you can set the schedule duration (`-d` flag) to zero seconds:
 
 ```sh
 gw /path/to/repo -v --http 0.0.0.0:10101 -d 0s
 ```
+
+You can use this to create a push-based deployment, for example calling the update from your CI process after your testing has run.
 
 ## Setup webhooks
 

@@ -13,6 +13,8 @@ Features of `gw`:
 - **pull-based**: works on any network, even behind a NAT or VPN
 - **flexible**: build, deploy, restart or anything you can imagine
 
+If you want to see how `gw` compare to other products: look at the [comparisons](https://gw.danielgrants.com/reference/comparison).
+
 ## Installation
 
 To get started with `gw`, you can use the install script:

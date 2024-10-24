@@ -1,6 +1,6 @@
 +++
 title = "Authentication"
-weight = 1
+weight = 2
 +++
 
 # Authentication

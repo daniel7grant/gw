@@ -1,6 +1,6 @@
 +++
 title = "Env variables"
-weight = 3
+weight = 4
 +++
 
 # Environment variables

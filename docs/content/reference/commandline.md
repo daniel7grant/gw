@@ -1,6 +1,6 @@
 +++
 title = "CLI arguments"
-weight = 2
+weight = 3
 +++
 
 # Command-line arguments
