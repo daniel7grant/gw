@@ -40,6 +40,15 @@ a:not([href^='#']):hover {
 
     .tagline {
         line-height: 1.33;
+        margin-bottom: 1rem;
+    }
+
+    .tagline a:hover {
+        border-bottom: none;
+    }
+
+    .tagline img {
+        margin-top: 1rem;
     }
 
     .mobile-only {

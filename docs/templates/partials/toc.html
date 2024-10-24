@@ -4,18 +4,33 @@
         watch repositories<br />
         sync with remote<br />
         run commands
+        <a href="https://github.com/daniel7grant/gw">
+            <img
+                src="https://img.shields.io/github/stars/daniel7grant/gw"
+                alt="GitHub Repo stars"
+                style="margin-bottom: 0"
+            />
+        </a>
     </p>
     <a href="#content" class="mobile-only">Jump to content</a>
-    {% set sections = get_section(path="_index.md") %}
-    {% for section_path in sections.subsections -%}
-    {% set subsection = get_section(path=section_path) %}
+    {% set sections = get_section(path="_index.md") %} {% for section_path in
+    sections.subsections -%} {% set subsection = get_section(path=section_path)
+    %}
     <h5>
-        <a href="{{ subsection.path }}" class="{% if subsection.path == current_path -%} active {%- endif %}">{{ subsection.title }}</a>
+        <a
+            href="{{ subsection.path }}"
+            class="{% if subsection.path == current_path -%} active {%- endif %}"
+            >{{ subsection.title }}</a
+        >
     </h5>
     <ul>
         {% for page in subsection.pages -%}
         <li>
-            <a href="{{ page.path }}" class="{% if page.path == current_path -%} active {%- endif %}">{{ page.title }}</a>
+            <a
+                href="{{ page.path }}"
+                class="{% if page.path == current_path -%} active {%- endif %}"
+                >{{ page.title }}</a
+            >
         </li>
         {%- endfor %}
     </ul>
