@@ -15,7 +15,7 @@ Watch local git repositories, keep in sync with remote and run commands.
 
 Features of `gw`:
 - **lightweight**: it is only a 1.5MB binary (~7MB with git and ssh statically built-in)
-- **runs anywhere**: use it on baremetal, [systemd](/usage/systemd) or [docker](/usage/docker)
+- **runs anywhere**: use it on baremetal or [systemd](https://gw.danielgrants.com/usage/systemd.md) on Linux (x86_64 and ARM) or in [Docker](https://gw.danielgrants.com/usage/docker.md) (Windows and MacOS is supported on a best-effort basis)
 - **open source**: written entirely in Rust, you can build it from source in a few minutes
 - **pull-based**: works on any network, even behind a NAT or VPN
 - **flexible**: build, deploy, restart or anything you can imagine

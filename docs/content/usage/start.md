@@ -7,7 +7,7 @@ weight = 2
 
 `gw` is a simple program, that you can use to pull changes from a remote repository and run scripts on the change.
 
-## Prerequisites
+### Prerequisites
 
 First, make sure, that `gw` is installed successfully and is in your PATH. If you don't have it, start with [Installation](/usage/installation):
 
