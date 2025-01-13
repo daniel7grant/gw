@@ -13,7 +13,7 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
 [dependencies]
-dirs = "5.0.1"
+dirs = "6.0.0"
 duct = "0.13.7"
 duct_sh = "0.13.7"
 duration-string = "0.4.0"
