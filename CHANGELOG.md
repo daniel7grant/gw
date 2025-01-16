@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Updated dependencies, with libgit2 updated to 1.9.0
+
 ## [0.4.0] - 2024-10-23
 
 ### Added

@@ -13,13 +13,12 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
 [dependencies]
-dirs = "5.0.1"
+dirs = "6"
 duct = "0.13.7"
 duct_sh = "0.13.7"
-duration-string = "0.4.0"
-git2 = "0.19.0"
+duration-string = "0.5.2"
+git2 = "0.20.0"
 gumdrop = "0.8.1"
-libgit2-sys = "0.17.0"
 log = "0.4.20"
 mockall = "0.13.0"
 nix = { version = "0.29.0", features = ["signal"] }
@@ -31,7 +30,7 @@ time = "0.3.36"
 tiny_http = "0.12.0"
 
 [target.'cfg(any(target_env = "musl", target_arch = "arm", target_arch = "aarch64"))'.dependencies]
-git2 = { version = "0.19.0", features = ["vendored-libgit2", "vendored-openssl"] }
+git2 = { version = "0.20.0", features = ["vendored-libgit2", "vendored-openssl"] }
 
 [dev-dependencies]
 duct = "0.13.7"
