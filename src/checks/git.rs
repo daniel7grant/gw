@@ -15,11 +15,20 @@ use known_hosts::setup_known_hosts;
 
 const CHECK_NAME: &str = "GIT";
 
+#[derive(Clone, Debug)]
+pub enum GitTriggerArgument {
+    Push,
+    Tag(String),
+}
+
 /// A check to fetch and pull a local git repository.
 ///
 /// This will update the repository, if there are any changes.
 /// In case there are any local changes, these might be erased.
-pub struct GitCheck(pub GitRepository);
+pub struct GitCheck {
+    pub repo: GitRepository,
+    pub trigger: GitTriggerArgument,
+}
 
 /// A custom error describing the error cases for the GitCheck.
 #[derive(Debug, Error)]
@@ -81,25 +90,28 @@ impl From<GitError> for CheckError {
 
 impl GitCheck {
     /// Open the git repository at the given directory.
-    pub fn open_inner(directory: &str) -> Result<Self, CheckError> {
+    pub fn open_inner(directory: &str, trigger: GitTriggerArgument) -> Result<Self, CheckError> {
         let repo = GitRepository::open(directory)?;
-        Ok(GitCheck(repo))
+        Ok(GitCheck { repo, trigger })
     }
 
-    pub fn open(directory: &str, additional_host: Option<String>) -> Result<Self, CheckError> {
+    pub fn open(
+        directory: &str,
+        additional_host: Option<String>,
+        trigger: GitTriggerArgument,
+    ) -> Result<Self, CheckError> {
         setup_known_hosts(additional_host)?;
         setup_gitconfig(directory)?;
 
-        let repo = GitRepository::open(directory)?;
-        Ok(GitCheck(repo))
+        GitCheck::open_inner(directory, trigger)
     }
 
     pub fn set_auth(&mut self, auth: CredentialAuth) {
-        self.0.set_auth(auth);
+        self.repo.set_auth(auth);
     }
 
     fn check_inner(&mut self, context: &mut Context) -> Result<bool, GitError> {
-        let GitCheck(repo) = self;
+        let GitCheck { repo, .. } = self;
 
         // Load context data from repository information
         let information = repo.get_repository_information()?;
@@ -270,7 +282,7 @@ mod tests {
 
         create_empty_repository(&local)?;
 
-        let _ = GitCheck::open_inner(&local)?;
+        let _ = GitCheck::open_inner(&local, GitTriggerArgument::Push)?;
 
         let _ = cleanup_repository(&local);
 
@@ -279,7 +291,9 @@ mod tests {
 
     #[test]
     fn it_should_fail_if_path_is_invalid() -> Result<(), Box<dyn Error>> {
-        let error = GitCheck::open_inner("/path/to/nowhere").err().unwrap();
+        let error = GitCheck::open_inner("/path/to/nowhere", GitTriggerArgument::Push)
+            .err()
+            .unwrap();
 
         assert!(
             matches!(error, CheckError::Misconfigured(_)),
@@ -297,7 +311,7 @@ mod tests {
         // Don't create commit to create an empty repository
         create_failing_repository(&local, false)?;
 
-        let failing_check = GitCheck::open_inner(&local);
+        let failing_check = GitCheck::open_inner(&local, GitTriggerArgument::Push);
         let error = failing_check.err().unwrap();
 
         assert!(
@@ -318,7 +332,7 @@ mod tests {
         // Don't create commit to create an empty repository
         create_failing_repository(&local, true)?;
 
-        let failing_check = GitCheck::open_inner(&local);
+        let failing_check = GitCheck::open_inner(&local, GitTriggerArgument::Push);
         let error = failing_check.err().unwrap();
 
         assert!(
@@ -338,7 +352,7 @@ mod tests {
 
         create_empty_repository(&local)?;
 
-        let mut check = GitCheck::open_inner(&local)?;
+        let mut check = GitCheck::open_inner(&local, GitTriggerArgument::Push)?;
         let mut context: Context = HashMap::new();
         let is_pulled = check.check_inner(&mut context)?;
         assert!(!is_pulled);
@@ -379,7 +393,7 @@ mod tests {
         create_other_repository(&local)?;
 
         let before_commit_sha = get_last_commit(&local)?;
-        let mut check = GitCheck::open_inner(&local)?;
+        let mut check = GitCheck::open_inner(&local, GitTriggerArgument::Push)?;
         let mut context: Context = HashMap::new();
         let is_pulled = check.check_inner(&mut context)?;
         assert!(is_pulled);
@@ -431,7 +445,7 @@ mod tests {
         create_other_repository(&local)?;
         create_tag(&format!("{local}-other"), "v0.1.0")?;
 
-        let mut check = GitCheck::open_inner(&local)?;
+        let mut check = GitCheck::open_inner(&local, GitTriggerArgument::Push)?;
         let mut context: Context = HashMap::new();
         let is_pulled = check.check_inner(&mut context)?;
         assert!(is_pulled);
@@ -461,7 +475,7 @@ mod tests {
         // Add uncommited modification to emulate a dirty working tree
         fs::write(format!("{local}/1"), "22")?;
 
-        let mut check = GitCheck::open_inner(&local)?;
+        let mut check = GitCheck::open_inner(&local, GitTriggerArgument::Push)?;
         let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
 
@@ -491,7 +505,7 @@ mod tests {
         // Modify the same file in both directories to create a merge conflict
         create_merge_conflict(&local)?;
 
-        let mut check = GitCheck::open_inner(&local)?;
+        let mut check = GitCheck::open_inner(&local, GitTriggerArgument::Push)?;
         let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
 
@@ -521,7 +535,7 @@ mod tests {
         perms.set_readonly(true);
         fs::set_permissions(&local, perms)?;
 
-        let mut check: GitCheck = GitCheck::open_inner(&local)?;
+        let mut check: GitCheck = GitCheck::open_inner(&local, GitTriggerArgument::Push)?;
         let mut context: Context = HashMap::new();
         let error = check.check_inner(&mut context).err().unwrap();
 

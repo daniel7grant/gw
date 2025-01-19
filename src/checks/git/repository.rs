@@ -151,7 +151,7 @@ impl GitRepository {
             "Fetched successfully to {}.",
             fetch_head
                 .peel_to_commit()
-                .map(|c| c.id().to_string()[0..7].to_string())
+                .map(|c| shorthash(&c.id().to_string()))
                 .unwrap_or("unknown reference".to_string())
         );
 
