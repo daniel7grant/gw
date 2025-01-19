@@ -15,6 +15,7 @@ impl FromStr for TriggerArgument {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "push" => Ok(TriggerArgument::Push),
+            "tag" => Ok(TriggerArgument::Tag("*".to_string())),
             s if s.starts_with("tag:") => Ok(TriggerArgument::Tag(
                 s.trim_start_matches("tag:").to_string(),
             )),
@@ -61,7 +62,12 @@ pub struct Args {
     #[options(long = "once", no_short)]
     pub once: bool,
 
-    /// The trigger on which to run (can be `push` or `tag:prefix`).
+    /// The trigger on which to run (can be `push`, `tag` or `tag:pattern`).
+    /// 
+    /// The options are:
+    /// - `push`: update on every commit,
+    /// - `tag`: update on every tag on this branch,
+    /// - `tag:pattern`: update on tags matching the glob.
     #[options(default = "push")]
     pub trigger: TriggerArgument,
 

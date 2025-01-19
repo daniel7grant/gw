@@ -1,4 +1,4 @@
-use self::repository::{shorthash, GitRepository, GitRepositoryInformation};
+use self::repository::{GitRepository, GitRepositoryInformation};
 use super::{Check, CheckError};
 use crate::context::Context;
 use std::fmt::Debug;
@@ -111,7 +111,7 @@ impl GitCheck {
     }
 
     fn check_inner(&mut self, context: &mut Context) -> Result<bool, GitError> {
-        let GitCheck { repo, .. } = self;
+        let GitCheck { repo, trigger } = self;
 
         // Load context data from repository information
         let information = repo.get_repository_information()?;
@@ -151,13 +151,22 @@ impl GitCheck {
 
         // Pull repository contents and report
         let fetch_commit = repo.fetch()?;
-        if repo.check_if_updatable(&fetch_commit)? && repo.pull(&fetch_commit)? {
-            context.insert("GIT_COMMIT_SHA", fetch_commit.id().to_string());
-            context.insert(
-                "GIT_COMMIT_SHORT_SHA",
-                shorthash(&fetch_commit.id().to_string()),
-            );
-            Ok(true)
+        if repo.check_if_updatable(&fetch_commit)? {
+            match trigger {
+                GitTriggerArgument::Push => {
+                    let result = repo.pull(fetch_commit.id())?;
+                    Ok(result)
+                }
+                GitTriggerArgument::Tag(pattern) => {
+                    let tags = repo.find_tags(fetch_commit.id(), pattern)?;
+                    if let Some(tag) = tags.last() {
+                        let result = repo.pull(*tag)?;
+                        Ok(result)
+                    } else {
+                        Ok(false)
+                    }
+                }
+            }
         } else {
             Ok(false)
         }
@@ -192,10 +201,8 @@ mod tests {
         fs::create_dir(&remote)?;
         cmd!("git", "init", "--bare").dir(&remote).read()?;
         cmd!("git", "clone", &remote, &local).read()?;
-        fs::write(format!("{local}/1"), "1")?;
-        cmd!("git", "add", "-A").dir(local).read()?;
-        cmd!("git", "commit", "-m1").dir(local).read()?;
-        cmd!("git", "push", "origin", "master").dir(local).read()?;
+        create_commit(local, "1", "1")?;
+        push_all(local)?;
 
         Ok(())
     }
@@ -206,17 +213,30 @@ mod tests {
 
         // Create another directory to push the changes
         cmd!("git", "clone", &remote, &other).read()?;
-        fs::write(format!("{other}/2"), "2")?;
-        cmd!("git", "add", "-A").dir(&other).read()?;
-        cmd!("git", "commit", "-m1").dir(&other).read()?;
-        cmd!("git", "push", "origin", "master").dir(other).read()?;
+        create_commit(&other, "2", "2")?;
+        push_all(&other)?;
+
+        Ok(())
+    }
+
+    fn create_commit(path: &str, file: &str, contents: &str) -> Result<(), Box<dyn Error>> {
+        fs::write(format!("{path}/{file}"), contents)?;
+        cmd!("git", "add", "-A").dir(path).read()?;
+        cmd!("git", "commit", "-m1").dir(path).read()?;
+
+        Ok(())
+    }
+
+    fn push_all(path: &str) -> Result<(), Box<dyn Error>> {
+        cmd!("git", "push", "origin", "master").dir(path).read()?;
+        cmd!("git", "push", "--tags").dir(path).read()?;
 
         Ok(())
     }
 
     fn create_tag(path: &str, tag: &str) -> Result<(), Box<dyn Error>> {
         cmd!("git", "tag", tag).dir(path).read()?;
-        cmd!("git", "push", "--tags").dir(path).read()?;
+        push_all(path)?;
 
         Ok(())
     }
@@ -248,14 +268,12 @@ mod tests {
         Ok(())
     }
 
-    fn create_failing_repository(local: &str, create_commit: bool) -> Result<(), Box<dyn Error>> {
+    fn create_failing_repository(local: &str, creating_commit: bool) -> Result<(), Box<dyn Error>> {
         fs::create_dir(local)?;
         cmd!("git", "init").dir(local).read()?;
 
-        if create_commit {
-            fs::write(format!("{local}/1"), "1")?;
-            cmd!("git", "add", "-A").dir(local).read()?;
-            cmd!("git", "commit", "-m1").dir(local).read()?;
+        if creating_commit {
+            create_commit(local, "1", "1")?;
         }
 
         Ok(())
@@ -264,13 +282,9 @@ mod tests {
     fn create_merge_conflict(local: &str) -> Result<(), Box<dyn Error>> {
         let other = format!("{local}-other");
 
-        fs::write(format!("{local}/1"), "11")?;
-        cmd!("git", "add", "-A").dir(local).read()?;
-        cmd!("git", "commit", "-m1").dir(local).read()?;
+        create_commit(local, "1", "11")?;
 
-        fs::write(format!("{other}/1"), "12")?;
-        cmd!("git", "add", "-A").dir(&other).read()?;
-        cmd!("git", "commit", "-m2").dir(other).read()?;
+        create_commit(&other, "1", "21")?;
 
         Ok(())
     }
@@ -435,7 +449,7 @@ mod tests {
     }
 
     #[test]
-    fn it_should_return_true_if_the_remote_changes_even_with_tags() -> Result<(), Box<dyn Error>> {
+    fn it_should_return_true_if_the_remote_changes_with_tags() -> Result<(), Box<dyn Error>> {
         let id = get_random_id();
         let local = format!("test_directories/{id}");
 
@@ -443,9 +457,13 @@ mod tests {
 
         // Create another repository, push a new commit and add a tag
         create_other_repository(&local)?;
-        create_tag(&format!("{local}-other"), "v0.1.0")?;
 
-        let mut check = GitCheck::open_inner(&local, GitTriggerArgument::Push)?;
+        let other = format!("{local}-other");
+        create_tag(&other, "v0.1.0")?;
+        create_commit(&other, "3", "3")?;
+        push_all(&other)?;
+
+        let mut check = GitCheck::open_inner(&local, GitTriggerArgument::Tag("v*".to_string()))?;
         let mut context: Context = HashMap::new();
         let is_pulled = check.check_inner(&mut context)?;
         assert!(is_pulled);
@@ -453,9 +471,73 @@ mod tests {
         // The pushed file should be pulled
         assert!(Path::new(&format!("{local}/2")).exists());
 
+        // The last commit should not be checked out
+        assert!(!Path::new(&format!("{local}/3")).exists());
+
         // Tag should be downloaded
         let tags = get_tags(&local)?;
         assert_eq!(tags, "v0.1.0");
+
+        let _ = cleanup_repository(&local);
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_should_return_false_if_no_new_tag_with_tags() -> Result<(), Box<dyn Error>> {
+        let id = get_random_id();
+        let local = format!("test_directories/{id}");
+
+        // Create tag with current repository to test if that triggers
+        create_empty_repository(&local)?;
+        create_tag(&local, "v0.2.0")?;
+        push_all(&local)?;
+
+        // Create another repository, push a new commit and add a tag
+        create_other_repository(&local)?;
+
+        let other = format!("{local}-other");
+        create_commit(&other, "3", "3")?;
+        push_all(&other)?;
+
+        let mut check = GitCheck::open_inner(&local, GitTriggerArgument::Tag("v*".to_string()))?;
+        let mut context: Context = HashMap::new();
+        let is_pulled = check.check_inner(&mut context)?;
+        assert!(!is_pulled);
+
+        // The commits should not be downloaded
+        assert!(!Path::new(&format!("{local}/2")).exists());
+        assert!(!Path::new(&format!("{local}/3")).exists());
+
+        let _ = cleanup_repository(&local);
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_should_return_false_if_no_tag_matches_with_tags() -> Result<(), Box<dyn Error>> {
+        let id = get_random_id();
+        let local = format!("test_directories/{id}");
+
+        create_empty_repository(&local)?;
+
+        // Create another repository, push a new commit and add a tag
+        create_other_repository(&local)?;
+
+        let other = format!("{local}-other");
+        create_tag(&other, "v0.1.0")?;
+        create_commit(&other, "3", "3")?;
+        push_all(&other)?;
+
+        let mut check =
+            GitCheck::open_inner(&local, GitTriggerArgument::Tag("no-match".to_string()))?;
+        let mut context: Context = HashMap::new();
+        let is_pulled = check.check_inner(&mut context)?;
+        assert!(!is_pulled);
+
+        // The commits should not be downloaded
+        assert!(!Path::new(&format!("{local}/2")).exists());
+        assert!(!Path::new(&format!("{local}/3")).exists());
 
         let _ = cleanup_repository(&local);
 
