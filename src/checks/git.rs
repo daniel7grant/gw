@@ -1,7 +1,7 @@
 use self::repository::{GitRepository, GitRepositoryInformation};
 use super::{Check, CheckError};
 use crate::context::Context;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use thiserror::Error;
 
 mod config;
@@ -12,6 +12,7 @@ mod repository;
 use config::setup_gitconfig;
 pub use credentials::CredentialAuth;
 use known_hosts::setup_known_hosts;
+use log::warn;
 use repository::shorthash;
 
 const CHECK_NAME: &str = "GIT";
@@ -20,6 +21,21 @@ const CHECK_NAME: &str = "GIT";
 pub enum GitTriggerArgument {
     Push,
     Tag(String),
+}
+
+impl Display for GitTriggerArgument {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GitTriggerArgument::Push => f.write_str("push"),
+            GitTriggerArgument::Tag(pattern) => {
+                if pattern == "*" {
+                    f.write_str("tag")
+                } else {
+                    write!(f, "tag matching \"{pattern}\"")
+                }
+            }
+        }
+    }
 }
 
 /// A check to fetch and pull a local git repository.
@@ -64,6 +80,9 @@ pub enum GitError {
     /// or there is a merge conflict.
     #[error("cannot update branch, this is likely a merge conflict")]
     MergeConflict,
+    /// Failed finding tags between the fetched commit and head. This might be a
+    #[error("failed matching tags between the new commit and the branch")]
+    TagMatchingFailed,
     /// Cannot set the HEAD to the fetch commit.
     #[error("could not set HEAD to fetch commit {0}")]
     FailedSettingHead(String),
@@ -82,9 +101,9 @@ impl From<GitError> for CheckError {
             GitError::DirtyWorkingTree | GitError::MergeConflict => {
                 CheckError::Conflict(value.to_string())
             }
-            GitError::FetchFailed(_) | GitError::FailedSettingHead(_) => {
-                CheckError::FailedUpdate(value.to_string())
-            }
+            GitError::FetchFailed(_)
+            | GitError::FailedSettingHead(_)
+            | GitError::TagMatchingFailed => CheckError::FailedUpdate(value.to_string()),
         }
     }
 }
@@ -93,6 +112,13 @@ impl GitCheck {
     /// Open the git repository at the given directory.
     pub fn open_inner(directory: &str, trigger: GitTriggerArgument) -> Result<Self, CheckError> {
         let repo = GitRepository::open(directory)?;
+
+        if let GitTriggerArgument::Tag(p) = &trigger {
+            if !(p.contains('*') || p.contains('?') || p.contains('[') || p.contains('{')) {
+                warn!("The tag pattern does not contain any globbing (*, ?, [] or {{}}), so it will only match \"{p}\" exactly.");
+            }
+        }
+
         Ok(GitCheck { repo, trigger })
     }
 
@@ -157,10 +183,7 @@ impl GitCheck {
                 GitTriggerArgument::Push => {
                     let result = repo.pull(fetch_commit.id())?;
                     context.insert("GIT_COMMIT_SHA", fetch_commit.id().to_string());
-                    context.insert(
-                        "GIT_COMMIT_SHORT_SHA",
-                        shorthash(&fetch_commit.id().to_string()),
-                    );
+                    context.insert("GIT_COMMIT_SHORT_SHA", shorthash(&fetch_commit.id()));
                     Ok(result)
                 }
                 GitTriggerArgument::Tag(pattern) => {
@@ -168,7 +191,7 @@ impl GitCheck {
                     if let Some(tag) = tags.last() {
                         let result = repo.pull(*tag)?;
                         context.insert("GIT_COMMIT_SHA", tag.to_string());
-                        context.insert("GIT_COMMIT_SHORT_SHA", shorthash(&tag.to_string()));
+                        context.insert("GIT_COMMIT_SHORT_SHA", shorthash(tag));
                         Ok(result)
                     } else {
                         Ok(false)

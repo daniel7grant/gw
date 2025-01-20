@@ -80,9 +80,9 @@ fn main_inner() -> Result<(), MainError> {
     }
 
     // Setup check.
-    // TODO: update log message
-    debug!("Setting up directory {directory} for GitCheck.");
-    let mut git_check = GitCheck::open(&directory, args.git_known_host, args.trigger.into())?;
+    let git_trigger = args.trigger.into();
+    debug!("Setting up GitCheck for \"{directory}\" on every {git_trigger}.");
+    let mut git_check = GitCheck::open(&directory, args.git_known_host, git_trigger)?;
     if let Some(ssh_key) = args.ssh_key {
         git_check.set_auth(CredentialAuth::Ssh(ssh_key));
     }

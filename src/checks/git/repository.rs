@@ -7,6 +7,7 @@ use git2::{
     StatusOptions,
 };
 use log::{debug, trace};
+use std::collections::HashMap;
 
 pub enum GitRepositoryInformation {
     Branch {
@@ -35,8 +36,8 @@ pub struct GitRepository {
 }
 
 /// Return the 7 characters short hash version for a commit SHA
-pub fn shorthash(sha: &str) -> String {
-    sha[0..7].to_string()
+pub fn shorthash(sha: &Oid) -> String {
+    sha.to_string()[0..7].to_string()
 }
 
 impl GitRepository {
@@ -65,8 +66,7 @@ impl GitRepository {
         let commit_sha = head
             .peel_to_commit()
             .map_err(|_| GitError::NotOnABranch)?
-            .id()
-            .to_string();
+            .id();
 
         // TODO: merge these two into one with optional tag information
         let branch_name = head.shorthand();
@@ -91,7 +91,7 @@ impl GitRepository {
                 ref_name: ref_name.to_string(),
                 branch_name: branch_name.to_string(),
                 commit_short_sha: shorthash(&commit_sha),
-                commit_sha,
+                commit_sha: commit_sha.to_string(),
                 remote_url: remote_url.to_string(),
                 remote_name: remote_name.to_string(),
             })
@@ -100,7 +100,7 @@ impl GitRepository {
                 ref_type: "reference".to_string(),
                 ref_name: ref_name.to_string(),
                 commit_short_sha: shorthash(&commit_sha),
-                commit_sha,
+                commit_sha: commit_sha.to_string(),
             })
         }
     }
@@ -138,7 +138,7 @@ impl GitRepository {
 
         // Fetch the remote state
         remote
-            .fetch(&[branch_name], Some(&mut opts), None)
+            .fetch(&[branch_name.clone()], Some(&mut opts), None)
             .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
 
         let fetch_head = repo
@@ -148,12 +148,11 @@ impl GitRepository {
             .reference_to_annotated_commit(&fetch_head)
             .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
 
-        // TODO: update message to make it clear that it is not pulled only fetched
         trace!(
-            "Fetched successfully to {}.",
+            "Fetched {remote_name}/{branch_name} successfully to {}.",
             fetch_head
                 .peel_to_commit()
-                .map(|c| shorthash(&c.id().to_string()))
+                .map(|c| shorthash(&c.id()))
                 .unwrap_or("unknown reference".to_string())
         );
 
@@ -182,49 +181,62 @@ impl GitRepository {
         }
     }
 
-    // TODO: improve error cases
-    // TODO: add logging and comments
     pub fn find_tags(&self, last_commit_id: Oid, pattern: &str) -> Result<Vec<Oid>, GitError> {
         let Self { repo, .. } = self;
 
-        let head = repo.head().map_err(|_| GitError::NotOnABranch)?;
-        let start_commit_id = head
-            .peel_to_commit()
+        // Walk until we reach the current head
+        let first_commit_id = repo
+            .head()
+            .and_then(|head| head.peel_to_commit())
             .map_err(|_| GitError::NotOnABranch)?
             .id();
 
-        let mut revwalk = repo.revwalk().map_err(|_| GitError::NotOnABranch)?;
-        revwalk
-            .push(last_commit_id)
-            .map_err(|_| GitError::NotOnABranch)?;
+        // Walk from the fetched commit
+        let mut revwalk = repo.revwalk().map_err(|_| GitError::TagMatchingFailed)?;
+        revwalk.push(last_commit_id).map_err(|_| {
+            GitError::FetchFailed("fetched commit is not on this branch".to_string())
+        })?;
+        trace!(
+            "Walking through commits between {}..{}.",
+            shorthash(&last_commit_id),
+            shorthash(&first_commit_id)
+        );
 
+        // Collect all tag references beforehand to improve performance
+        // If a tag does not point to a valid commit, ignore it
         let tag_names = repo
             .tag_names(Some(pattern))
-            .map_err(|_| GitError::NotOnABranch)?;
-
-        let tag_commits: Vec<Oid> = tag_names
+            .map_err(|_| GitError::TagMatchingFailed)?;
+        let tag_commits: HashMap<Oid, String> = tag_names
             .iter()
             .flatten()
             .flat_map(|tag_name| {
                 repo.find_reference(&format!("refs/tags/{tag_name}"))
                     .and_then(|tag| tag.peel_to_commit())
-                    .map(|tag| tag.id())
+                    .map(|tag| (tag.id(), tag_name.to_string()))
             })
             .collect();
 
+        // Go through the list of commits, and register if a commit has a tag pointing to it
         let mut tags = vec![];
         for oid in revwalk {
-            let oid = oid.map_err(|_| GitError::NotOnABranch)?;
+            let oid = oid.map_err(|_| GitError::TagMatchingFailed)?;
 
-            if oid == start_commit_id {
+            if oid == first_commit_id {
                 break;
             }
 
-            if tag_commits.contains(&oid) {
+            if let Some(tag_name) = tag_commits.get(&oid) {
+                debug!("Commit {} has a matching tag: {tag_name}.", shorthash(&oid));
                 tags.push(oid);
             }
         }
 
+        if tags.is_empty() {
+            trace!("There are no commits with tag matching \"{pattern}\".");
+        }
+
+        // Put it into chronological order
         tags.reverse();
 
         Ok(tags)
@@ -253,7 +265,7 @@ impl GitRepository {
 
         let msg = format!("Fast-Forward: Setting {} to id: {}.", ref_name, commit_id);
 
-        let fetch_short = shorthash(&commit_id.to_string());
+        let fetch_short = shorthash(&commit_id);
         trace!("Setting {} to id: {}.", ref_name, fetch_short);
 
         let mut branch_ref = repo
