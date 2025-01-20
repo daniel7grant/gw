@@ -12,6 +12,7 @@ mod repository;
 use config::setup_gitconfig;
 pub use credentials::CredentialAuth;
 use known_hosts::setup_known_hosts;
+use repository::shorthash;
 
 const CHECK_NAME: &str = "GIT";
 
@@ -155,12 +156,19 @@ impl GitCheck {
             match trigger {
                 GitTriggerArgument::Push => {
                     let result = repo.pull(fetch_commit.id())?;
+                    context.insert("GIT_COMMIT_SHA", fetch_commit.id().to_string());
+                    context.insert(
+                        "GIT_COMMIT_SHORT_SHA",
+                        shorthash(&fetch_commit.id().to_string()),
+                    );
                     Ok(result)
                 }
                 GitTriggerArgument::Tag(pattern) => {
                     let tags = repo.find_tags(fetch_commit.id(), pattern)?;
                     if let Some(tag) = tags.last() {
                         let result = repo.pull(*tag)?;
+                        context.insert("GIT_COMMIT_SHA", tag.to_string());
+                        context.insert("GIT_COMMIT_SHORT_SHA", shorthash(&tag.to_string()));
                         Ok(result)
                     } else {
                         Ok(false)

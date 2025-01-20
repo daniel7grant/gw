@@ -148,6 +148,7 @@ impl GitRepository {
             .reference_to_annotated_commit(&fetch_head)
             .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
 
+        // TODO: update message to make it clear that it is not pulled only fetched
         trace!(
             "Fetched successfully to {}.",
             fetch_head
