@@ -1,4 +1,4 @@
-use self::repository::{GitRepository, GitRepositoryInformation};
+use self::repository::GitRepository;
 use super::{Check, CheckError};
 use crate::context::Context;
 use std::fmt::{Debug, Display, Formatter};
@@ -143,56 +143,34 @@ impl GitCheck {
         // Load context data from repository information
         let information = repo.get_repository_information()?;
         context.insert("CHECK_NAME", CHECK_NAME.to_string());
-        match information {
-            GitRepositoryInformation::Branch {
-                ref_type,
-                ref_name,
-                branch_name,
-                commit_sha,
-                commit_short_sha,
-                remote_name,
-                remote_url,
-            } => {
-                context.insert("GIT_REF_TYPE", ref_type);
-                context.insert("GIT_REF_NAME", ref_name);
-                context.insert("GIT_BRANCH_NAME", branch_name);
-                context.insert("GIT_BEFORE_COMMIT_SHA", commit_sha.clone());
-                context.insert("GIT_BEFORE_COMMIT_SHORT_SHA", commit_short_sha.clone());
-                context.insert("GIT_COMMIT_SHA", commit_sha);
-                context.insert("GIT_COMMIT_SHORT_SHA", commit_short_sha);
-                context.insert("GIT_REMOTE_NAME", remote_name);
-                context.insert("GIT_REMOTE_URL", remote_url);
-            }
-            GitRepositoryInformation::Reference {
-                ref_type,
-                ref_name,
-                commit_sha,
-                commit_short_sha,
-            } => {
-                context.insert("GIT_REF_TYPE", ref_type);
-                context.insert("GIT_REF_NAME", ref_name);
-                context.insert("GIT_BEFORE_COMMIT_SHA", commit_sha);
-                context.insert("GIT_BEFORE_COMMIT_SHORT_SHA", commit_short_sha);
-            }
-        }
+        context.insert("GIT_BRANCH_NAME", information.branch_name);
+        context.insert("GIT_BEFORE_COMMIT_SHA", information.commit_sha.to_string());
+        context.insert("GIT_BEFORE_COMMIT_SHORT_SHA", information.commit_short_sha);
+        context.insert("GIT_REMOTE_NAME", information.remote_name);
+        context.insert("GIT_REMOTE_URL", information.remote_url);
 
         // Pull repository contents and report
         let fetch_commit = repo.fetch()?;
         if repo.check_if_updatable(&fetch_commit)? {
             match trigger {
                 GitTriggerArgument::Push => {
-                    let result = repo.pull(fetch_commit.id())?;
+                    repo.pull(fetch_commit.id())?;
+                    context.insert("GIT_REF_TYPE", "branch".to_string());
+                    context.insert("GIT_REF_NAME", information.ref_name);
                     context.insert("GIT_COMMIT_SHA", fetch_commit.id().to_string());
                     context.insert("GIT_COMMIT_SHORT_SHA", shorthash(&fetch_commit.id()));
-                    Ok(result)
+                    Ok(true)
                 }
                 GitTriggerArgument::Tag(pattern) => {
                     let tags = repo.find_tags(fetch_commit.id(), pattern)?;
-                    if let Some(tag) = tags.last() {
-                        let result = repo.pull(*tag)?;
-                        context.insert("GIT_COMMIT_SHA", tag.to_string());
-                        context.insert("GIT_COMMIT_SHORT_SHA", shorthash(tag));
-                        Ok(result)
+                    if let Some((tag_name, commit)) = tags.last() {
+                        repo.pull(*commit)?;
+                        context.insert("GIT_REF_TYPE", "tag".to_string());
+                        context.insert("GIT_REF_NAME", format!("refs/tags/{tag_name}"));
+                        context.insert("GIT_COMMIT_SHA", commit.to_string());
+                        context.insert("GIT_COMMIT_SHORT_SHA", shorthash(commit));
+                        context.insert("GIT_COMMIT_TAG_NAME", tag_name.to_string());
+                        Ok(true)
                     } else {
                         Ok(false)
                     }
@@ -402,26 +380,6 @@ mod tests {
         let is_pulled = check.check_inner(&mut context)?;
         assert!(!is_pulled);
 
-        // It should set the context keys
-        let commit_sha = get_last_commit(&local)?;
-        let remote_path = fs::canonicalize(format!("{local}-remote"))?;
-        let remote = remote_path.to_str().unwrap();
-        assert_eq!("branch", context.get("GIT_REF_TYPE").unwrap());
-        assert_eq!("refs/heads/master", context.get("GIT_REF_NAME").unwrap());
-        assert_eq!("master", context.get("GIT_BRANCH_NAME").unwrap());
-        assert_eq!(&commit_sha, context.get("GIT_BEFORE_COMMIT_SHA").unwrap());
-        assert_eq!(
-            &commit_sha[0..7],
-            context.get("GIT_BEFORE_COMMIT_SHORT_SHA").unwrap()
-        );
-        assert_eq!("origin", context.get("GIT_REMOTE_NAME").unwrap());
-        assert_eq!(
-            remote,
-            fs::canonicalize(context.get("GIT_REMOTE_URL").unwrap())?
-                .to_str()
-                .unwrap()
-        );
-
         let _ = cleanup_repository(&local);
 
         Ok(())
@@ -494,6 +452,7 @@ mod tests {
         create_commit(&other, "3", "3")?;
         push_all(&other)?;
 
+        let before_commit_sha = get_last_commit(&local)?;
         let mut check = GitCheck::open_inner(&local, GitTriggerArgument::Tag("v*".to_string()))?;
         let mut context: Context = HashMap::new();
         let is_pulled = check.check_inner(&mut context)?;
@@ -508,6 +467,34 @@ mod tests {
         // Tag should be downloaded
         let tags = get_tags(&local)?;
         assert_eq!(tags, "v0.1.0");
+
+        // It should set the context keys
+        let remote_path = fs::canonicalize(format!("{local}-remote"))?;
+        let remote = remote_path.to_str().unwrap();
+        let commit_sha = get_last_commit(&local)?;
+        assert_eq!("tag", context.get("GIT_REF_TYPE").unwrap());
+        assert_eq!("refs/tags/v0.1.0", context.get("GIT_REF_NAME").unwrap());
+        assert_eq!("master", context.get("GIT_BRANCH_NAME").unwrap());
+        assert_eq!(
+            &before_commit_sha,
+            context.get("GIT_BEFORE_COMMIT_SHA").unwrap()
+        );
+        assert_eq!(
+            &before_commit_sha[0..7],
+            context.get("GIT_BEFORE_COMMIT_SHORT_SHA").unwrap()
+        );
+        assert_eq!(&commit_sha, context.get("GIT_COMMIT_SHA").unwrap());
+        assert_eq!(
+            &commit_sha[0..7],
+            context.get("GIT_COMMIT_SHORT_SHA").unwrap()
+        );
+        assert_eq!("origin", context.get("GIT_REMOTE_NAME").unwrap());
+        assert_eq!(
+            remote,
+            fs::canonicalize(context.get("GIT_REMOTE_URL").unwrap())?
+                .to_str()
+                .unwrap()
+        );
 
         let _ = cleanup_repository(&local);
 

@@ -26,18 +26,19 @@ These are the variables that are exposed from the trigger, which can be schedule
 
 These are the variables that are exposed from the check, which currently is always git.
 
-| Variable name                    | Example                              | Notes                                        |
-| -------------------------------- | ------------------------------------ | -------------------------------------------- |
-| `GW_CHECK_NAME`                  | `GIT`                                | The identifier of the check.                 |
-| `GW_GIT_BEFORE_COMMIT_SHA`       | `acfd4f88da199...`                   | The SHA of the commit before the pull.       |
-| `GW_GIT_BEFORE_COMMIT_SHORT_SHA` | `acfd4f8`                            | The 7-character short hash of the commit.    |
-| `GW_GIT_BRANCH_NAME`             | `main`                               | The name of the branch, that the repo is on. |
-| `GW_GIT_COMMIT_SHA`              | `acfd4f88da199...`                   | The SHA of the commit after the pull.        |
-| `GW_GIT_COMMIT_SHORT_SHA`        | `acfd4f8`                            | The 7-character short hash of the commit.    |
-| `GW_GIT_REF_NAME`                | `refs/heads/main`, `refs/tags/v1.0`  | The full name of the current git ref.        |
-| `GW_GIT_REF_TYPE`                | `branch`, `tag`                      | The type of the ref we are currently on.     |
-| `GW_GIT_REMOTE_NAME`             | `origin`                             | The name of the remote used.                 |
-| `GW_GIT_REMOTE_URL`              | `git@github.com:daniel7grant/gw.git` | The URL to the git remote.                   |
+| Variable name                    | Example                              | Notes                                         |
+| -------------------------------- | ------------------------------------ | --------------------------------------------- |
+| `GW_CHECK_NAME`                  | `GIT`                                | The identifier of the check.                  |
+| `GW_GIT_BEFORE_COMMIT_SHA`       | `acfd4f88da199...`                   | The SHA of the commit before the pull.        |
+| `GW_GIT_BEFORE_COMMIT_SHORT_SHA` | `acfd4f8`                            | The 7-character short hash of the commit.     |
+| `GW_GIT_BRANCH_NAME`             | `main`                               | The name of the branch, that the repo is on.  |
+| `GW_GIT_COMMIT_SHA`              | `acfd4f88da199...`                   | The SHA of the commit after the pull.         |
+| `GW_GIT_COMMIT_SHORT_SHA`        | `acfd4f8`                            | The 7-character short hash of the commit.     |
+| `GW_GIT_REF_NAME`                | `refs/heads/main`, `refs/tags/v1.0`  | The full name of the current git ref.         |
+| `GW_GIT_REF_TYPE`                | `branch`, `tag`                      | The type of the ref we are currently on.      |
+| `GW_GIT_REMOTE_NAME`             | `origin`                             | The name of the remote used.                  |
+| `GW_GIT_REMOTE_URL`              | `git@github.com:daniel7grant/gw.git` | The URL to the git remote.                    |
+| `GW_GIT_TAG_NAME`                | `v1.0`                               | The tag of the pulled commit if there is one. |
 
 ## Action variables
 
