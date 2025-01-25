@@ -9,7 +9,9 @@ The different steps can add variables to the context, which are exposed to the s
 All of these are prefixed with `GW_` to avoid collisions. The second part usually identifies the specific trigger,
 check or action.
 
-A good way to debug environment variables is to print the variables with `-s "printenv"`.
+If you want to use the environment variables in [command-line arguments](/reference/commandline), make sure to use the subshell variants (`-S`, `-P`),
+because only these can expand variables. It is recommended to use single-quotes to avoid expanding at start time. A good way
+to debug environment variables is to print them with `-S 'printenv'`.
 
 ## Trigger variables
 
