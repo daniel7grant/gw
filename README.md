@@ -106,6 +106,25 @@ $ gw /path/to/repo -v -p "python -m http.server"
 
 This will run a python process in the background and stop and start it again if a git pull happened. Just wrap your deployment script with `gw` and see it gets updated every time you push to git.
 
+## Run actions on tags
+
+Pulling on every commit might not be the fit for every product, especially ones that needs to maintains compatibility or strictly versioned. For these, you can instead trigger on tags. Use the `--on tag` flag to only pull changes if there is a tag on the current branch.
+
+```sh
+$ gw /path/to/repo -v --on tag --script 'echo $GIT_TAG_NAME'
+# ...
+2024-10-18T16:28:53.907Z [INFO ] There are updates, running actions.
+2024-10-18T16:28:53.907Z [INFO ] Running script "echo" in /path/to/repo.
+2024-10-18T16:28:53.913Z [DEBUG] [echo] v0.1.0
+2024-10-18T16:28:53.913Z [INFO ] Script "echo" finished successfully.
+```
+
+This will always fetch the current branch, check for the latest tag on it and pull only the commits up to that tag. To match some kind of commit, you can use the `--on tag:v*` which will only pull if the tag is matching the passed glob (in this case starting with `v`).
+
+```sh
+gw /path/to/repo -v --on 'tag:v*' --script 'echo "new version: $GIT_TAG_NAME"'
+```
+
 ## Next steps
 
 If you like `gw`, there are multiple ways to use it for real-life use-cases.

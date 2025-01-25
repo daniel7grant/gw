@@ -4,6 +4,10 @@
 
 ### Changed
 
+- **New feature**: Trigger on git tags
+  - Use the `--on tag` to only pull to the latest tag on the branch
+  - Use `--on tag:v*` to match the tags with the given glob
+  - Git repository will stay on the branch, but will do a partial pull to the tag and run actions
 - Updated dependencies, with libgit2 updated to 1.9.0
 
 ## [0.4.0] - 2024-10-23

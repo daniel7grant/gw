@@ -63,12 +63,12 @@ pub struct Args {
     pub once: bool,
 
     /// The trigger on which to run (can be `push`, `tag` or `tag:pattern`).
-    /// 
+    ///
     /// The options are:
     /// - `push`: update on every commit,
     /// - `tag`: update on every tag on this branch,
     /// - `tag:pattern`: update on tags matching the glob.
-    #[options(default = "push")]
+    #[options(no_short, long = "on", default = "push")]
     pub trigger: TriggerArgument,
 
     /// Refreshes the repo with this interval.
