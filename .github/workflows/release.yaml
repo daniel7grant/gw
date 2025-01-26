@@ -178,24 +178,27 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - name: Add new apt sources that support armhf
         run: |
-          sudo tee /etc/apt/sources.list << EOF
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricted
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy universe
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates universe
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy multiverse
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates multiverse
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse
-          deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security main restricted
-          deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security universe
-          deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security multiverse
-          deb [arch=armhf] http://ports.ubuntu.com/ jammy main restricted
-          deb [arch=armhf] http://ports.ubuntu.com/ jammy-updates main restricted
-          deb [arch=armhf] http://ports.ubuntu.com/ jammy universe
-          deb [arch=armhf] http://ports.ubuntu.com/ jammy-updates universe
-          deb [arch=armhf] http://ports.ubuntu.com/ jammy multiverse
-          deb [arch=armhf] http://ports.ubuntu.com/ jammy-updates multiverse
-          deb [arch=armhf] http://ports.ubuntu.com/ jammy-backports main restricted universe multiverse
+          sudo tee /etc/apt/sources.list.d/ubuntu.sources << EOF
+          Types: deb
+          URIs: http://archive.ubuntu.com/ubuntu/
+          Suites: noble noble-updates noble-backports
+          Components: main universe restricted multiverse
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          Architectures: amd64
+
+          Types: deb
+          URIs: http://security.ubuntu.com/ubuntu/
+          Suites: noble-security
+          Components: main universe restricted multiverse
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          Architectures: amd64
+
+          Types: deb
+          URIs: http://ports.ubuntu.com/
+          Suites: noble noble-updates noble-backports
+          Components: main universe restricted multiverse
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          Architectures: armhf
           EOF
       - name: Enable ARM cross-build capabilities
         run: sudo dpkg --add-architecture armhf
