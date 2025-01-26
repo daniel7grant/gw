@@ -8,8 +8,8 @@ fail() {
 }
 
 # CONFIGURE VARIABLES
-REPO="https://github.com/daniel7grant/gw"
-VERSION="v0.4.0"
+REPO="${REPO:-https://github.com/daniel7grant/gw}"
+VERSION="${VERSION:-v0.4.1}"
 if [ "$(id -u)" -ne "0" ]; then
     BIN_DIR="$HOME/.local/bin"
 else
