@@ -3,27 +3,19 @@ use super::{
     GitError,
 };
 use git2::{
-    AnnotatedCommit, AutotagOption, Config, FetchOptions, RemoteCallbacks, Repository,
+    AnnotatedCommit, AutotagOption, Config, FetchOptions, Oid, RemoteCallbacks, Repository,
     StatusOptions,
 };
 use log::{debug, trace};
+use std::collections::HashMap;
 
-pub enum GitRepositoryInformation {
-    Branch {
-        ref_type: String,
-        ref_name: String,
-        branch_name: String,
-        commit_sha: String,
-        commit_short_sha: String,
-        remote_name: String,
-        remote_url: String,
-    },
-    Reference {
-        ref_type: String,
-        ref_name: String,
-        commit_sha: String,
-        commit_short_sha: String,
-    },
+pub struct GitRepositoryInformation {
+    pub ref_name: String,
+    pub branch_name: String,
+    pub commit_sha: Oid,
+    pub commit_short_sha: String,
+    pub remote_name: String,
+    pub remote_url: String,
 }
 
 /// A directory that is opened as a git repository.
@@ -35,8 +27,8 @@ pub struct GitRepository {
 }
 
 /// Return the 7 characters short hash version for a commit SHA
-pub fn shorthash(sha: &str) -> String {
-    sha[0..7].to_string()
+pub fn shorthash(sha: &Oid) -> String {
+    sha.to_string()[0..7].to_string()
 }
 
 impl GitRepository {
@@ -65,56 +57,42 @@ impl GitRepository {
         let commit_sha = head
             .peel_to_commit()
             .map_err(|_| GitError::NotOnABranch)?
-            .id()
-            .to_string();
+            .id();
 
-        let branch_name = head.shorthand();
-        if let Some(branch_name) = branch_name {
-            let remote_buf = repo
-                .branch_upstream_remote(ref_name)
-                .map_err(|_| GitError::NoRemoteForBranch(String::from(branch_name)))?;
-            let remote_name = remote_buf
-                .as_str()
-                .ok_or_else(|| GitError::NoRemoteForBranch(String::from(branch_name)))?;
+        let branch_name = head.shorthand().ok_or(GitError::NotOnABranch)?;
+        let remote_buf = repo
+            .branch_upstream_remote(ref_name)
+            .map_err(|_| GitError::NoRemoteForBranch(String::from(branch_name)))?;
+        let remote_name = remote_buf
+            .as_str()
+            .ok_or_else(|| GitError::NoRemoteForBranch(String::from(branch_name)))?;
 
-            let remote = repo
-                .find_remote(remote_name)
-                .map_err(|_| GitError::NoRemoteForBranch(String::from(branch_name)))?;
+        let remote = repo
+            .find_remote(remote_name)
+            .map_err(|_| GitError::NoRemoteForBranch(String::from(branch_name)))?;
 
-            let remote_url = remote
-                .url()
-                .ok_or(GitError::NoRemoteForBranch(String::from(branch_name)))?;
+        let remote_url = remote
+            .url()
+            .ok_or(GitError::NoRemoteForBranch(String::from(branch_name)))?;
 
-            Ok(GitRepositoryInformation::Branch {
-                ref_type: "branch".to_string(),
-                ref_name: ref_name.to_string(),
-                branch_name: branch_name.to_string(),
-                commit_short_sha: shorthash(&commit_sha),
-                commit_sha,
-                remote_url: remote_url.to_string(),
-                remote_name: remote_name.to_string(),
-            })
-        } else {
-            Ok(GitRepositoryInformation::Reference {
-                ref_type: "reference".to_string(),
-                ref_name: ref_name.to_string(),
-                commit_short_sha: shorthash(&commit_sha),
-                commit_sha,
-            })
-        }
+        Ok(GitRepositoryInformation {
+            ref_name: ref_name.to_string(),
+            branch_name: branch_name.to_string(),
+            commit_short_sha: shorthash(&commit_sha),
+            commit_sha,
+            remote_url: remote_url.to_string(),
+            remote_name: remote_name.to_string(),
+        })
     }
 
     // Inspired from: https://github.com/rust-lang/git2-rs/blob/master/examples/pull.rs
     pub fn fetch(&self) -> Result<AnnotatedCommit, GitError> {
         let Self { repo, .. } = self;
-        let (branch_name, remote_name) = match self.get_repository_information()? {
-            GitRepositoryInformation::Branch {
-                branch_name,
-                remote_name,
-                ..
-            } => Ok((branch_name, remote_name)),
-            GitRepositoryInformation::Reference { .. } => Err(GitError::NotOnABranch),
-        }?;
+        let GitRepositoryInformation {
+            branch_name,
+            remote_name,
+            ..
+        } = self.get_repository_information()?;
 
         trace!("Trying to fetch {branch_name} from {remote_name}.");
 
@@ -137,7 +115,7 @@ impl GitRepository {
 
         // Fetch the remote state
         remote
-            .fetch(&[branch_name], Some(&mut opts), None)
+            .fetch(&[branch_name.clone()], Some(&mut opts), None)
             .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
 
         let fetch_head = repo
@@ -148,10 +126,10 @@ impl GitRepository {
             .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
 
         trace!(
-            "Fetched successfully to {}.",
+            "Fetched {remote_name}/{branch_name} successfully to {}.",
             fetch_head
                 .peel_to_commit()
-                .map(|c| c.id().to_string()[0..7].to_string())
+                .map(|c| shorthash(&c.id()))
                 .unwrap_or("unknown reference".to_string())
         );
 
@@ -180,16 +158,76 @@ impl GitRepository {
         }
     }
 
-    pub fn pull(&self, fetch_commit: &AnnotatedCommit) -> Result<bool, GitError> {
+    pub fn find_tags(
+        &self,
+        last_commit_id: Oid,
+        pattern: &str,
+    ) -> Result<Vec<(String, Oid)>, GitError> {
         let Self { repo, .. } = self;
-        let (branch_name, ref_name) = match self.get_repository_information()? {
-            GitRepositoryInformation::Branch {
-                branch_name,
-                ref_name,
-                ..
-            } => Ok((branch_name, ref_name)),
-            GitRepositoryInformation::Reference { .. } => Err(GitError::NotOnABranch),
-        }?;
+        let GitRepositoryInformation {
+            commit_sha: first_commit_id,
+            commit_short_sha: first_commit_short_sha,
+            ..
+        } = self.get_repository_information()?;
+
+        // Walk from the fetched commit
+        let mut revwalk = repo.revwalk().map_err(|_| GitError::TagMatchingFailed)?;
+        revwalk.push(last_commit_id).map_err(|_| {
+            GitError::FetchFailed("fetched commit is not on this branch".to_string())
+        })?;
+        trace!(
+            "Walking through fetched commits between {}..{}.",
+            shorthash(&last_commit_id),
+            first_commit_short_sha
+        );
+
+        // Collect all tag references beforehand to improve performance
+        // If a tag does not point to a valid commit, ignore it
+        let tag_names = repo
+            .tag_names(Some(pattern))
+            .map_err(|_| GitError::TagMatchingFailed)?;
+        let tag_commits: HashMap<Oid, String> = tag_names
+            .iter()
+            .flatten()
+            .flat_map(|tag_name| {
+                repo.find_reference(&format!("refs/tags/{tag_name}"))
+                    .and_then(|tag| tag.peel_to_commit())
+                    .map(|tag| (tag.id(), tag_name.to_string()))
+            })
+            .collect();
+
+        // Go through the list of commits, and register if a commit has a tag pointing to it
+        let mut tags = vec![];
+        for oid in revwalk {
+            let oid = oid.map_err(|_| GitError::TagMatchingFailed)?;
+
+            if oid == first_commit_id {
+                break;
+            }
+
+            if let Some(tag_name) = tag_commits.get(&oid) {
+                debug!("Commit {} has a matching tag: {tag_name}.", shorthash(&oid));
+                tags.push((tag_name.clone(), oid));
+            }
+        }
+
+        if tags.is_empty() {
+            debug!("There is no new commit with tag matching \"{pattern}\".");
+        }
+
+        // Put it into chronological order
+        tags.reverse();
+
+        Ok(tags)
+    }
+
+    pub fn pull(&self, commit_id: Oid) -> Result<(), GitError> {
+        let Self { repo, .. } = self;
+        let GitRepositoryInformation {
+            branch_name,
+            ref_name,
+            ..
+        } = self.get_repository_information()?;
 
         trace!("Pulling {branch_name}.");
 
@@ -201,21 +239,16 @@ impl GitRepository {
             return Err(GitError::DirtyWorkingTree);
         }
 
-        let msg = format!(
-            "Fast-Forward: Setting {} to id: {}.",
-            ref_name,
-            fetch_commit.id()
-        );
+        let msg = format!("Fast-Forward: Setting {} to id: {}.", ref_name, commit_id);
 
-        let fetch_short = shorthash(&fetch_commit.id().to_string());
+        let fetch_short = shorthash(&commit_id);
         trace!("Setting {} to id: {}.", ref_name, fetch_short);
 
         let mut branch_ref = repo
             .find_reference(&ref_name)
             .map_err(|_| GitError::NotOnABranch)?;
-        let fetch_id = fetch_commit.id();
         branch_ref
-            .set_target(fetch_id, &msg)
+            .set_target(commit_id, &msg)
             .map_err(|_| GitError::FailedSettingHead(fetch_short.to_string()))?;
         repo.set_head(&ref_name)
             .map_err(|_| GitError::FailedSettingHead(fetch_short.to_string()))?;
@@ -224,6 +257,6 @@ impl GitRepository {
 
         debug!("Checked out {} on branch {}.", fetch_short, branch_name);
 
-        Ok(true)
+        Ok(())
     }
 }

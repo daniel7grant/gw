@@ -1,19 +1,34 @@
 use duration_string::DurationString;
 use gumdrop::Options;
+use gw_bin::checks::git::GitTriggerArgument;
 use std::{env, str::FromStr};
 
 #[derive(Clone, Debug)]
-pub enum Trigger {
+pub enum TriggerArgument {
     Push,
+    Tag(String),
 }
 
-impl FromStr for Trigger {
+impl FromStr for TriggerArgument {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "push" => Ok(Trigger::Push),
-            s => Err(format!("cannot parse {s}, valid values: push")),
+            "push" => Ok(TriggerArgument::Push),
+            "tag" => Ok(TriggerArgument::Tag("*".to_string())),
+            s if s.starts_with("tag:") => Ok(TriggerArgument::Tag(
+                s.trim_start_matches("tag:").to_string(),
+            )),
+            s => Err(format!("cannot parse {s}, valid values: push, tag, tag:prefix")),
+        }
+    }
+}
+
+impl From<TriggerArgument> for GitTriggerArgument {
+    fn from(value: TriggerArgument) -> Self {
+        match value {
+            TriggerArgument::Push => GitTriggerArgument::Push,
+            TriggerArgument::Tag(t) => GitTriggerArgument::Tag(t),
         }
     }
 }
@@ -47,11 +62,16 @@ pub struct Args {
     #[options(long = "once", no_short)]
     pub once: bool,
 
-    /// The trigger on which to run.
-    #[options(default = "push")]
-    pub trigger: Trigger,
+    /// The trigger on which to run (can be `push`, `tag` or `tag:pattern`).
+    ///
+    /// The options are:
+    /// - `push`: update on every commit,
+    /// - `tag`: update on every tag on this branch,
+    /// - `tag:pattern`: update on tags matching the glob.
+    #[options(no_short, long = "on", default = "push")]
+    pub trigger: TriggerArgument,
 
-    /// Refreshes the repo with this delay.
+    /// Refreshes the repo with this interval.
     ///
     /// Can be a number postfixed with s(econd), m(inutes), h(ours), d(ays)
     #[options(long = "every", default = "1m")]
