@@ -19,7 +19,7 @@ impl FromStr for TriggerArgument {
             s if s.starts_with("tag:") => Ok(TriggerArgument::Tag(
                 s.trim_start_matches("tag:").to_string(),
             )),
-            s => Err(format!("cannot parse {s}, valid values: push, tag:prefix")),
+            s => Err(format!("cannot parse {s}, valid values: push, tag, tag:prefix")),
         }
     }
 }

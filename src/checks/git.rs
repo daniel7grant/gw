@@ -162,13 +162,13 @@ impl GitCheck {
                     Ok(true)
                 }
                 GitTriggerArgument::Tag(pattern) => {
-                    let tags = repo.find_tags(fetch_commit.id(), pattern)?;
-                    if let Some((tag_name, commit)) = tags.last() {
-                        repo.pull(*commit)?;
+                    let mut tags = repo.find_tags(fetch_commit.id(), pattern)?;
+                    if let Some((tag_name, commit)) = tags.pop() {
+                        repo.pull(commit)?;
                         context.insert("GIT_REF_TYPE", "tag".to_string());
                         context.insert("GIT_REF_NAME", format!("refs/tags/{tag_name}"));
                         context.insert("GIT_COMMIT_SHA", commit.to_string());
-                        context.insert("GIT_COMMIT_SHORT_SHA", shorthash(commit));
+                        context.insert("GIT_COMMIT_SHORT_SHA", shorthash(&commit));
                         context.insert("GIT_COMMIT_TAG_NAME", tag_name.to_string());
                         Ok(true)
                     } else {

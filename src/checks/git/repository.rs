@@ -212,7 +212,7 @@ impl GitRepository {
         }
 
         if tags.is_empty() {
-            trace!("There is no new commit with tag matching \"{pattern}\".");
+            debug!("There is no new commit with tag matching \"{pattern}\".");
         }
 
         // Put it into chronological order
