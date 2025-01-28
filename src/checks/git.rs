@@ -196,11 +196,11 @@ impl Check for GitCheck {
 mod tests {
     use super::*;
     use duct::cmd;
-    use rand::distributions::{Alphanumeric, DistString};
+    use rand::distr::{Alphanumeric, SampleString};
     use std::{collections::HashMap, error::Error, fs, path::Path};
 
     fn get_random_id() -> String {
-        Alphanumeric.sample_string(&mut rand::thread_rng(), 16)
+        Alphanumeric.sample_string(&mut rand::rng(), 16)
     }
 
     fn create_empty_repository(local: &str) -> Result<(), Box<dyn Error>> {

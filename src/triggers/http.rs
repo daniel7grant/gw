@@ -109,11 +109,11 @@ mod tests {
 
         let result = ureq::get("http://localhost:10101").call()?;
         assert_eq!(200, result.status());
-        assert_eq!("OK", result.into_string()?);
+        assert_eq!("OK", result.into_body().read_to_string()?);
 
-        let result = ureq::post("http://localhost:10101/trigger").call()?;
+        let result = ureq::post("http://localhost:10101/trigger").send_empty()?;
         assert_eq!(200, result.status());
-        assert_eq!("OK", result.into_string()?);
+        assert_eq!("OK", result.into_body().read_to_string()?);
 
         let msg = rx.recv()?;
         let context = msg.unwrap();
