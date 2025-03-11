@@ -4,7 +4,7 @@
 
 ### Changed
 - Updated test dependencies
-- Updated minreq to avoid ring vulnerability
+- Updated ureq to avoid ring vulnerability
 
 ## [0.4.1] - 2025-01-26
 
