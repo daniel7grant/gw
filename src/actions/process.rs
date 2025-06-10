@@ -284,7 +284,7 @@ impl Process {
 
             debug!(
                 "Process didn't stop gracefully after {}. Killing process.",
-                DurationString::from(self.stop_timeout).to_string()
+                DurationString::from(self.stop_timeout)
             );
 
             child

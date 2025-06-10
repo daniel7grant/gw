@@ -5,6 +5,7 @@
 ### Changed
 - Updated test dependencies
 - Updated ureq to avoid ring vulnerability
+- Updated duct to 1.0.0
 
 ## [0.4.1] - 2025-01-26
 
