@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- If known hosts or gitconfig creation fails, only a warning is emitted now (#49)
 - Updated test dependencies
 - Updated ureq to avoid ring vulnerability
 - Updated duct to 1.0.0
