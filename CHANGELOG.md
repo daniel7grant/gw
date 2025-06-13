@@ -2,11 +2,16 @@
 
 ## [Unreleased]
 
+## [0.4.2] - 2025-06-13
+
 ### Changed
 - If known hosts or gitconfig creation fails, only a warning is emitted now (#49)
 - Updated test dependencies
 - Updated ureq to avoid ring vulnerability
 - Updated duct to 1.0.0
+- Upgrade Docker image versions:
+  - rust:1.80 -> 1.87
+  - alpine:1.20 -> 1.22
 
 ## [0.4.1] - 2025-01-26
 
