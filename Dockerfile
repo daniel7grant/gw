@@ -1,4 +1,4 @@
-FROM rust:1.80-alpine AS builder
+FROM rust:1.87-alpine AS builder
 
 WORKDIR /app
 
@@ -9,13 +9,13 @@ RUN apk add --no-cache \
         musl-dev \
         perl
 
-COPY ./Cargo.lock ./Cargo.toml /app
+COPY ./Cargo.lock ./Cargo.toml /app/
 COPY ./src /app/src
 
 RUN cargo build --release
 
 
-FROM alpine:3.20
+FROM alpine:3.22
 
 RUN apk add --no-cache \
         ca-certificates
