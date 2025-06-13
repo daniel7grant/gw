@@ -127,8 +127,11 @@ impl GitCheck {
         additional_host: Option<String>,
         trigger: GitTriggerArgument,
     ) -> Result<Self, CheckError> {
-        setup_known_hosts(additional_host)?;
-        setup_gitconfig(directory)?;
+        let known_hosts_failed = setup_known_hosts(additional_host).is_err();
+        let gitconfig_failed = setup_gitconfig(directory).is_err();
+        if known_hosts_failed || gitconfig_failed {
+            warn!("Setting up known hosts or git configuration failed. Check if home directory exists and the permissions are correct.");
+        };
 
         GitCheck::open_inner(directory, trigger)
     }

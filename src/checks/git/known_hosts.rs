@@ -53,26 +53,26 @@ pub fn setup_known_hosts(additional_host: Option<String>) -> Result<(), GitError
                 .open(&known_hosts)
                 .map_err(|_| GitError::SshConfigFailed)?;
 
+            writeln!(known_hosts_file, "{host}").map_err(|_| GitError::SshConfigFailed)?;
             debug!(
-                "Host key not found in {}, adding from arguments.",
+                "Host key not found in {}, added from arguments.",
                 known_hosts.to_string_lossy()
             );
-            writeln!(known_hosts_file, "{host}").map_err(|_| GitError::SshConfigFailed)?;
         }
     } else if !known_hosts.exists() {
         let mut known_hosts_file =
             File::create(&known_hosts).map_err(|_| GitError::SshConfigFailed)?;
 
-        warn!(
-            "There is no {}, creating with default fingerprints.",
-            known_hosts.to_string_lossy()
-        );
         writeln!(known_hosts_file, "{GITHUB_FINGERPRINTS}")
             .map_err(|_| GitError::SshConfigFailed)?;
         writeln!(known_hosts_file, "{GITLAB_FINGERPRINTS}")
             .map_err(|_| GitError::SshConfigFailed)?;
         writeln!(known_hosts_file, "{BITBUCKET_FINGERPRINTS}")
             .map_err(|_| GitError::SshConfigFailed)?;
+        warn!(
+            "There is no {}, created with default fingerprints.",
+            known_hosts.to_string_lossy()
+        );
     }
 
     Ok(())
