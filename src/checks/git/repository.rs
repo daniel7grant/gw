@@ -7,7 +7,7 @@ use git2::{
     StatusOptions,
 };
 use log::{debug, trace};
-use std::collections::HashMap;
+use std::{collections::HashMap, slice};
 
 pub struct GitRepositoryInformation {
     pub ref_name: String,
@@ -86,7 +86,7 @@ impl GitRepository {
     }
 
     // Inspired from: https://github.com/rust-lang/git2-rs/blob/master/examples/pull.rs
-    pub fn fetch(&self) -> Result<AnnotatedCommit, GitError> {
+    pub fn fetch(&self) -> Result<AnnotatedCommit<'_>, GitError> {
         let Self { repo, .. } = self;
         let GitRepositoryInformation {
             branch_name,
@@ -115,7 +115,7 @@ impl GitRepository {
 
         // Fetch the remote state
         remote
-            .fetch(&[branch_name.clone()], Some(&mut opts), None)
+            .fetch(slice::from_ref(&branch_name), Some(&mut opts), None)
             .map_err(|err| GitError::FetchFailed(err.message().trim().to_string()))?;
 
         let fetch_head = repo
