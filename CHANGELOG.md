@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Updated dependencies
+
 ## [0.4.2] - 2025-06-13
 
 ### Changed
