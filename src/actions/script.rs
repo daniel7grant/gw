@@ -1,7 +1,7 @@
 use super::{utils::command::create_command, Action, ActionError};
 use crate::context::Context;
 use duct::Expression;
-use log::{debug, error, info};
+use log::{debug, info};
 use std::io::{BufRead, BufReader};
 use thiserror::Error;
 
